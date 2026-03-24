@@ -3,6 +3,28 @@ import * as m from 'zigbee-herdsman-converters/lib/modernExtend';
 import {presets as e, access as ea} from 'zigbee-herdsman-converters/lib/exposes';
 import * as utils from 'zigbee-herdsman-converters/lib/utils';
 
+function minMax() {
+    const exposes = [];
+    exposes.push(
+        e.enum("setLimits", ea.SET, ["setMin", "setMax"]).withDescription("Set device limits").withCategory("config")
+    );
+
+    const toZigbee = [
+        {
+            key: ["setLimits"],
+            convertSet: async (entity, key, value, meta) => {
+                utils.assertEndpoint(entity);
+
+                await entity.command("tcSpecificBlind", value, {});
+
+                return {};
+            }
+        }
+    ];
+
+    return {exposes, toZigbee, isModernExtend: true};
+}
+
 function blindNudge() {
     const exposes = [];
     exposes.push(
@@ -70,6 +92,7 @@ export default {
             description: 'Enable setup mode'
         }),
         blindNudge(),
+        minMax(),
         m.identify(),
         m.battery({
             voltage: true
