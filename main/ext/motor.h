@@ -14,6 +14,9 @@ class BlindMotor {
         void motorPwmSetup();
         void feedbackSetup();
 
+        bool _sensorPower = true;
+        void sensorPower(const bool p);
+
         pcnt_unit_handle_t pcnt_unit = NULL;
         uint64_t _position = INT64_MAX;
         uint64_t _exactPosition = INT64_MAX;

@@ -19,6 +19,22 @@ static void motor_task(void *pvParameters) {
     motor.task();
 }
 
+void BlindMotor::sensorPower(const bool p) {
+    if (_sensorPower == p) return;
+    _sensorPower = p;
+
+    if (p) {
+        gpio_set_level(ENCODER_PWR, 1);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
+        pcnt_unit_enable(pcnt_unit);
+        pcnt_unit_start(pcnt_unit);
+    } else {
+        pcnt_unit_stop(pcnt_unit);
+        pcnt_unit_disable(pcnt_unit);
+        gpio_set_level(ENCODER_PWR, 0);
+    }
+}
+
 void BlindMotor::motorPwmSetup() {
     ledc_timer_config_t ledc_timer = {
         .speed_mode       = LEDC_LOW_SPEED_MODE,
@@ -139,6 +155,9 @@ void BlindMotor::updateSpeed(const int32_t speed) {
     if (_speed == 0 && speed != 0 && _prefs != NULL) _prefs->putUShort(NVS_ACTUATIONS, ++_actuations);
     _speed = speed;
 
+    // Ensure encoder is enabled
+    sensorPower(true);
+
     bool forward = speed > 0;
     uint16_t duty = abs(speed) / 8;
 
@@ -219,6 +238,7 @@ void BlindMotor::task() {
 
         if (_prefs != NULL) _prefs->putULong64(NVS_POSITION, _exactPosition);
         // printf("Stopped receiving motor updates. Stopped or stalled? %d, %llu, %llu\n", _speed, _exactPosition, _target);
+        sensorPower(false);
     }
 }
 
