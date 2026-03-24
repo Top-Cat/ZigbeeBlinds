@@ -62,11 +62,24 @@ void ZigbeeSensor::createTemperatureCluster(esp_zb_cluster_list_t* cluster_list)
 
 void ZigbeeSensor::createHumidityCluster(esp_zb_cluster_list_t* cluster_list) {
     esp_zb_attribute_list_t *humidity_cluster = esp_zb_humidity_meas_cluster_create(&humidity_cfg);
-    esp_zb_cluster_list_add_temperature_meas_cluster(cluster_list, humidity_cluster, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
+    esp_zb_cluster_list_add_humidity_meas_cluster(cluster_list, humidity_cluster, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
 }
 
 void ZigbeeSensor::createCustomClusters(esp_zb_cluster_list_t* cluster_list) {
-    // None
+    esp_zb_attribute_list_t *blinds_cluster = esp_zb_zcl_attr_list_create(MS_BLIND_CLUSTER_ID);
+
+    uint16_t val = 0;
+    esp_zb_cluster_add_manufacturer_attr(
+        blinds_cluster,
+        MS_BLIND_CLUSTER_ID,
+        ATTR_SETUP_ID,
+        MANUFACTURER_CODE,
+        ESP_ZB_ZCL_ATTR_TYPE_BOOL,
+        ESP_ZB_ZCL_ATTR_ACCESS_READ_WRITE,
+        &val
+    );
+
+    esp_zb_cluster_list_add_custom_cluster(cluster_list, blinds_cluster, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
 }
 
 void ZigbeeSensor::createWindowCoveringCluster(esp_zb_cluster_list_t* cluster_list) {
@@ -78,13 +91,13 @@ void ZigbeeSensor::createWindowCoveringCluster(esp_zb_cluster_list_t* cluster_li
     esp_zb_window_covering_cluster_add_attr(wc_cluster_server, ESP_ZB_ZCL_ATTR_WINDOW_COVERING_INSTALLED_OPEN_LIMIT_LIFT_ID, &position);
     esp_zb_window_covering_cluster_add_attr(wc_cluster_server, ESP_ZB_ZCL_ATTR_WINDOW_COVERING_INSTALLED_CLOSED_LIMIT_LIFT_ID, &position);
     esp_zb_window_covering_cluster_add_attr(wc_cluster_server, ESP_ZB_ZCL_ATTR_WINDOW_COVERING_VELOCITY_ID, &position);
-    esp_zb_window_covering_cluster_add_attr(wc_cluster_server, ESP_ZB_ZCL_ATTR_WINDOW_COVERING_ACCELERATION_TIME_ID, &position);
-    esp_zb_window_covering_cluster_add_attr(wc_cluster_server, ESP_ZB_ZCL_ATTR_WINDOW_COVERING_DECELERATION_TIME_ID, &position);
+    // esp_zb_window_covering_cluster_add_attr(wc_cluster_server, ESP_ZB_ZCL_ATTR_WINDOW_COVERING_ACCELERATION_TIME_ID, &position);
+    // esp_zb_window_covering_cluster_add_attr(wc_cluster_server, ESP_ZB_ZCL_ATTR_WINDOW_COVERING_DECELERATION_TIME_ID, &position);
 
     uint8_t percent = 0;
     esp_zb_window_covering_cluster_add_attr(wc_cluster_server, ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CURRENT_POSITION_LIFT_PERCENTAGE_ID, &percent);
 
-    esp_zb_cluster_list_add_ota_cluster(cluster_list, wc_cluster_server, ESP_ZB_ZCL_CLUSTER_CLIENT_ROLE);
+    esp_zb_cluster_list_add_window_covering_cluster(cluster_list, wc_cluster_server, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
 }
 
 void ZigbeeSensor::createPowerCluster(esp_zb_cluster_list_t* cluster_list) {
@@ -178,48 +191,120 @@ void ZigbeeSensor::setBattery(uint8_t battery, uint8_t percentage) {
     );
 }
 
-void ZigbeeSensor::init() {
-    prefs.begin(NVS_NAMESPACE, false);
-    // uint32_t blackBinTime = prefs.getUInt(NVS_BLACK, 0);
-    // uint32_t greenBinTime = prefs.getUInt(NVS_GREEN, 0);
-    // uint32_t brownBinTime = prefs.getUInt(NVS_BROWN, 0);
-}
+void ZigbeeSensor::init(Preferences* prefs) {
+    _prefs = prefs;
+    velocity = _prefs->getUShort(NVS_VELOCITY, INT16_MAX);
+    min = _prefs->getULong64(NVS_MIN, 0);
+    uint64_t lmax = _prefs->getULong64(NVS_MAX, UINT64_MAX);
+    max = (lmax - min) / (1 << 4);
 
-ZigbeeSensor::~ZigbeeSensor() {
-    prefs.end();
+    motor.setVelocity(velocity);
+    motor.setEnds(min, lmax);
 }
 
 void ZigbeeSensor::onConnect() {
-    // Update any state from prefs
+    esp_zb_lock_acquire(portMAX_DELAY);
+    uint32_t varArr[] = {
+        velocity, max
+    };
+    uint16_t attrIdArr[] = {
+        ESP_ZB_ZCL_ATTR_WINDOW_COVERING_VELOCITY_ID, ESP_ZB_ZCL_ATTR_WINDOW_COVERING_INSTALLED_CLOSED_LIMIT_LIFT_ID
+    };
+    uint16_t clusterIdArr[] = {
+        ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING, ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING
+    };
+    uint8_t items = sizeof(attrIdArr) / sizeof(uint16_t);
+
+    for (uint8_t i = 0; i < items; i++) {
+        if (clusterIdArr[i] >= 0xFC00) {
+            esp_zb_zcl_set_manufacturer_attribute_val(
+                _endpoint,
+                clusterIdArr[i],
+                ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+                MANUFACTURER_CODE,
+                attrIdArr[i],
+                &varArr[i],
+                false
+            );
+        } else {
+            esp_zb_zcl_set_attribute_val(
+                _endpoint,
+                clusterIdArr[i],
+                ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+                attrIdArr[i],
+                &varArr[i],
+                false
+            );
+        }
+    }
+    esp_zb_lock_release();
+}
+
+void ZigbeeSensor::zbAttributeSet(const esp_zb_zcl_set_attr_value_message_t *message) {
+    if (message->info.cluster == ESP_ZB_ZCL_CLUSTER_ID_IDENTIFY) {
+        uint16_t state = *(uint16_t *)message->attribute.data.value;
+        gpio_set_level(LED_PIN, state % 2);
+    } else if (message->info.cluster == ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING) {
+        switch (message->attribute.id) {
+            case ESP_ZB_ZCL_ATTR_WINDOW_COVERING_VELOCITY_ID:
+                velocity = *(uint16_t *)message->attribute.data.value;
+                _prefs->putUShort(NVS_VELOCITY, velocity);
+                motor.setVelocity(velocity);
+                break;
+        }
+    } else if (message->info.cluster == MS_BLIND_CLUSTER_ID) {
+        bool setup = *(bool *)message->attribute.data.value;
+        motor.setSetup(setup);
+    }
 }
 
 void ZigbeeSensor::zbCommand(const zb_zcl_parsed_hdr_t* cmdInfo, const void* data) {
-    if (cmdInfo->cluster_id != ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING) return;
+    if (cmdInfo->cluster_id == MS_BLIND_CLUSTER_ID) {
+        uint64_t temp;
+        switch (cmdInfo->cmd_id) {
+            case CMD_SET_MIN_ID:
+                min = motor.setMin();
+                _prefs->putULong64(NVS_MIN, min);
+                break;
+            case CMD_SET_MAX_ID:
+                temp = motor.setMax();
+                _prefs->putULong64(NVS_MAX, temp);
+                max = (temp - min) / (1 << 4);
 
-    switch (cmdInfo->cmd_id) {
-        case ESP_ZB_ZCL_CMD_WINDOW_COVERING_UP_OPEN:
-            // Up
-            motor.goPercent(0);
-            break;
-        case ESP_ZB_ZCL_CMD_WINDOW_COVERING_DOWN_CLOSE:
-            // Down
-            motor.goPercent(100);
-            break;
-        case ESP_ZB_ZCL_CMD_WINDOW_COVERING_STOP:
-            // Stop
-            motor.stop();
-            break;
-        case ESP_ZB_ZCL_CMD_WINDOW_COVERING_GO_TO_LIFT_VALUE: {
-            // Go to position
-            uint16_t position = *(uint16_t *)data;
-            motor.goPosition(position);
-            break;
+                esp_zb_zcl_set_attribute_val(
+                    _endpoint,
+                    ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
+                    ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+                    ESP_ZB_ZCL_ATTR_WINDOW_COVERING_INSTALLED_CLOSED_LIMIT_LIFT_ID,
+                    &max,
+                    false
+                );
+                break;
+            case CMD_NUDGE_ID:
+                motor.nudge(*(int16_t *)data);
+                break;
         }
-        case ESP_ZB_ZCL_CMD_WINDOW_COVERING_GO_TO_LIFT_PERCENTAGE: {
-            // Go to percentage
-            uint8_t percent = *(uint8_t *)data;
-            motor.goPercent(percent);
-            break;
+    } else if (cmdInfo->cluster_id == ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING) {
+        switch (cmdInfo->cmd_id) {
+            case ESP_ZB_ZCL_CMD_WINDOW_COVERING_UP_OPEN:
+                // Up
+                return motor.goDirection(true);
+            case ESP_ZB_ZCL_CMD_WINDOW_COVERING_DOWN_CLOSE:
+                // Down
+                return motor.goDirection(false);
+            case ESP_ZB_ZCL_CMD_WINDOW_COVERING_STOP:
+                // Stop
+                return motor.stop();
+            case ESP_ZB_ZCL_CMD_WINDOW_COVERING_GO_TO_LIFT_VALUE: {
+                // Go to position
+                uint16_t position = *(uint16_t *)data;
+                return motor.goPosition(min + (position * (1 << 4)));
+            }
+            case ESP_ZB_ZCL_CMD_WINDOW_COVERING_GO_TO_LIFT_PERCENTAGE: {
+                // Go to percentage
+                uint8_t percent = *(uint8_t *)data;
+                return motor.goPercent(percent);
+            }
         }
     }
 }
@@ -235,7 +320,7 @@ ZigbeeSensor::ZigbeeSensor(uint8_t endpoint) : ZigbeeDevice(ESP_ZB_HA_SIMPLE_SEN
     ota_cluster_cfg = {
         .ota_upgrade_file_version = FW_VERSION,
         .ota_upgrade_manufacturer = 0x1001,
-        .ota_upgrade_image_type = 0x1013,
+        .ota_upgrade_image_type = 0x1014,
         .ota_min_block_reque = 0,
         .ota_upgrade_file_offset = 0,
         .ota_upgrade_downloaded_file_ver = ESP_ZB_ZCL_OTA_UPGRADE_DOWNLOADED_FILE_VERSION_DEF_VALUE,
@@ -318,6 +403,45 @@ bool ZigbeeSensor::setHumidity(float humidity) {
     bool res = ret == ESP_ZB_ZCL_STATUS_SUCCESS;
     if (!res) {
         ESP_LOGE(TAG, "Failed to set humidity: 0x%x: %s", ret, esp_zb_zcl_status_to_name(ret));
+    }
+    return res;
+}
+
+bool ZigbeeSensor::setBlindState(uint8_t percent, uint16_t position, uint16_t actuations) {
+    esp_zb_zcl_status_t ret, ret2, ret3 = ESP_ZB_ZCL_STATUS_SUCCESS;
+
+    esp_zb_lock_acquire(portMAX_DELAY);
+    ret = esp_zb_zcl_set_attribute_val(
+        _endpoint,
+        ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
+        ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+        ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CURRENT_POSITION_LIFT_PERCENTAGE_ID,
+        &percent,
+        false
+    );
+
+    ret2 = esp_zb_zcl_set_attribute_val(
+        _endpoint,
+        ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
+        ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+        ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CURRENT_POSITION_LIFT_ID,
+        &position,
+        false
+    );
+
+    ret3 = esp_zb_zcl_set_attribute_val(
+        _endpoint,
+        ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
+        ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+        ESP_ZB_ZCL_ATTR_WINDOW_COVERING_NUMBER_OF_ACTUATIONS_LIFT_ID,
+        &actuations,
+        false
+    );
+    esp_zb_lock_release();
+
+    bool res = (ret | ret2 | ret3) == ESP_ZB_ZCL_STATUS_SUCCESS;
+    if (!res) {
+        ESP_LOGE(TAG, "Failed to set percentage: 0x%x: %s", ret, esp_zb_zcl_status_to_name(ret));
     }
     return res;
 }

@@ -4,9 +4,9 @@
 #include "esp_adc/adc_cali.h"
 
 #define R1_K 2000
-#define R2_K 500
+#define R2_K 470
 #define BAT_HIGH_MV 12600
-#define BAT_LOW_MV 11000
+#define BAT_LOW_MV 8400
 
 class BSADC {
     public:

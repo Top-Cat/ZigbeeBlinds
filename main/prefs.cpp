@@ -19,22 +19,25 @@ bool Preferences::begin(const char *name, bool readOnly, const char *partition_l
     if (_started) {
         return false;
     }
+
     _readOnly = readOnly;
     esp_err_t err = ESP_OK;
     if (partition_label != NULL) {
         err = nvs_flash_init_partition(partition_label);
         if (err) {
-        ESP_LOGE(TAG, "nvs_flash_init_partition failed: %s", nvs_error(err));
-        return false;
+            ESP_LOGE(TAG, "nvs_flash_init_partition failed: %s", nvs_error(err));
+            return false;
         }
         err = nvs_open_from_partition(partition_label, name, readOnly ? NVS_READONLY : NVS_READWRITE, &_handle);
     } else {
         err = nvs_open(name, readOnly ? NVS_READONLY : NVS_READWRITE, &_handle);
     }
+
     if (err) {
         ESP_LOGE(TAG, "nvs_open failed: %s", nvs_error(err));
         return false;
     }
+
     _started = true;
     return true;
 }
@@ -43,6 +46,7 @@ void Preferences::end() {
     if (!_started) {
         return;
     }
+
     nvs_close(_handle);
     _started = false;
 }
@@ -55,16 +59,19 @@ bool Preferences::clear() {
     if (!_started || _readOnly) {
         return false;
     }
+
     esp_err_t err = nvs_erase_all(_handle);
     if (err) {
         ESP_LOGE(TAG, "nvs_erase_all fail: %s", nvs_error(err));
         return false;
     }
+
     err = nvs_commit(_handle);
     if (err) {
         ESP_LOGE(TAG, "nvs_commit fail: %s", nvs_error(err));
         return false;
     }
+
     return true;
 }
 
@@ -76,16 +83,19 @@ bool Preferences::remove(const char *key) {
     if (!_started || !key || _readOnly) {
         return false;
     }
+
     esp_err_t err = nvs_erase_key(_handle, key);
     if (err) {
         ESP_LOGE(TAG, "nvs_erase_key fail: %s %s", key, nvs_error(err));
         return false;
     }
+
     err = nvs_commit(_handle);
     if (err) {
         ESP_LOGE(TAG, "nvs_commit fail: %s %s", key, nvs_error(err));
         return false;
     }
+
     return true;
 }
 
@@ -97,16 +107,19 @@ size_t Preferences::putChar(const char *key, int8_t value) {
     if (!_started || !key || _readOnly) {
         return 0;
     }
+
     esp_err_t err = nvs_set_i8(_handle, key, value);
     if (err) {
         ESP_LOGE(TAG, "nvs_set_i8 fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     err = nvs_commit(_handle);
     if (err) {
         ESP_LOGE(TAG, "nvs_commit fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     return 1;
 }
 
@@ -114,16 +127,19 @@ size_t Preferences::putUChar(const char *key, uint8_t value) {
     if (!_started || !key || _readOnly) {
         return 0;
     }
+
     esp_err_t err = nvs_set_u8(_handle, key, value);
     if (err) {
         ESP_LOGE(TAG, "nvs_set_u8 fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     err = nvs_commit(_handle);
     if (err) {
         ESP_LOGE(TAG, "nvs_commit fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     return 1;
 }
 
@@ -131,16 +147,19 @@ size_t Preferences::putShort(const char *key, int16_t value) {
     if (!_started || !key || _readOnly) {
         return 0;
     }
+
     esp_err_t err = nvs_set_i16(_handle, key, value);
     if (err) {
         ESP_LOGE(TAG, "nvs_set_i16 fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     err = nvs_commit(_handle);
     if (err) {
         ESP_LOGE(TAG, "nvs_commit fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     return 2;
 }
 
@@ -148,16 +167,19 @@ size_t Preferences::putUShort(const char *key, uint16_t value) {
     if (!_started || !key || _readOnly) {
         return 0;
     }
+
     esp_err_t err = nvs_set_u16(_handle, key, value);
     if (err) {
         ESP_LOGE(TAG, "nvs_set_u16 fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     err = nvs_commit(_handle);
     if (err) {
         ESP_LOGE(TAG, "nvs_commit fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     return 2;
 }
 
@@ -165,16 +187,19 @@ size_t Preferences::putInt(const char *key, int32_t value) {
     if (!_started || !key || _readOnly) {
         return 0;
     }
+
     esp_err_t err = nvs_set_i32(_handle, key, value);
     if (err) {
         ESP_LOGE(TAG, "nvs_set_i32 fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     err = nvs_commit(_handle);
     if (err) {
         ESP_LOGE(TAG, "nvs_commit fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     return 4;
 }
 
@@ -182,16 +207,19 @@ size_t Preferences::putUInt(const char *key, uint32_t value) {
     if (!_started || !key || _readOnly) {
         return 0;
     }
+
     esp_err_t err = nvs_set_u32(_handle, key, value);
     if (err) {
         ESP_LOGE(TAG, "nvs_set_u32 fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     err = nvs_commit(_handle);
     if (err) {
         ESP_LOGE(TAG, "nvs_commit fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     return 4;
 }
 
@@ -207,16 +235,19 @@ size_t Preferences::putLong64(const char *key, int64_t value) {
     if (!_started || !key || _readOnly) {
         return 0;
     }
+
     esp_err_t err = nvs_set_i64(_handle, key, value);
     if (err) {
         ESP_LOGE(TAG, "nvs_set_i64 fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     err = nvs_commit(_handle);
     if (err) {
         ESP_LOGE(TAG, "nvs_commit fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     return 8;
 }
 
@@ -224,16 +255,19 @@ size_t Preferences::putULong64(const char *key, uint64_t value) {
     if (!_started || !key || _readOnly) {
         return 0;
     }
+
     esp_err_t err = nvs_set_u64(_handle, key, value);
     if (err) {
         ESP_LOGE(TAG, "nvs_set_u64 fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     err = nvs_commit(_handle);
     if (err) {
         ESP_LOGE(TAG, "nvs_commit fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     return 8;
 }
 
@@ -253,16 +287,19 @@ size_t Preferences::putString(const char *key, const char *value) {
     if (!_started || !key || !value || _readOnly) {
         return 0;
     }
+
     esp_err_t err = nvs_set_str(_handle, key, value);
     if (err) {
         ESP_LOGE(TAG, "nvs_set_str fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     err = nvs_commit(_handle);
     if (err) {
         ESP_LOGE(TAG, "nvs_commit fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     return strlen(value);
 }
 
@@ -270,16 +307,19 @@ size_t Preferences::putBytes(const char *key, const void *value, size_t len) {
     if (!_started || !key || !value || !len || _readOnly) {
         return 0;
     }
+
     esp_err_t err = nvs_set_blob(_handle, key, value, len);
     if (err) {
         ESP_LOGE(TAG, "nvs_set_blob fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     err = nvs_commit(_handle);
     if (err) {
         ESP_LOGE(TAG, "nvs_commit fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     return len;
 }
 
@@ -287,6 +327,7 @@ PreferenceType Preferences::getType(const char *key) {
     if (!_started || !key || strlen(key) > 15) {
         return PT_INVALID;
     }
+
     int8_t mt1;
     uint8_t mt2;
     int16_t mt3;
@@ -342,6 +383,7 @@ int8_t Preferences::getChar(const char *key, const int8_t defaultValue) {
     if (!_started || !key) {
         return value;
     }
+
     esp_err_t err = nvs_get_i8(_handle, key, &value);
     if (err) {
         ESP_LOGV(TAG, "nvs_get_i8 fail: %s %s", key, nvs_error(err));
@@ -354,6 +396,7 @@ uint8_t Preferences::getUChar(const char *key, const uint8_t defaultValue) {
     if (!_started || !key) {
         return value;
     }
+
     esp_err_t err = nvs_get_u8(_handle, key, &value);
     if (err) {
         ESP_LOGV(TAG, "nvs_get_u8 fail: %s %s", key, nvs_error(err));
@@ -366,6 +409,7 @@ int16_t Preferences::getShort(const char *key, const int16_t defaultValue) {
     if (!_started || !key) {
         return value;
     }
+
     esp_err_t err = nvs_get_i16(_handle, key, &value);
     if (err) {
         ESP_LOGV(TAG, "nvs_get_i16 fail: %s %s", key, nvs_error(err));
@@ -378,6 +422,7 @@ uint16_t Preferences::getUShort(const char *key, const uint16_t defaultValue) {
     if (!_started || !key) {
         return value;
     }
+
     esp_err_t err = nvs_get_u16(_handle, key, &value);
     if (err) {
         ESP_LOGV(TAG, "nvs_get_u16 fail: %s %s", key, nvs_error(err));
@@ -390,6 +435,7 @@ int32_t Preferences::getInt(const char *key, const int32_t defaultValue) {
     if (!_started || !key) {
         return value;
     }
+
     esp_err_t err = nvs_get_i32(_handle, key, &value);
     if (err) {
         ESP_LOGV(TAG, "nvs_get_i32 fail: %s %s", key, nvs_error(err));
@@ -402,6 +448,7 @@ uint32_t Preferences::getUInt(const char *key, const uint32_t defaultValue) {
     if (!_started || !key) {
         return value;
     }
+
     esp_err_t err = nvs_get_u32(_handle, key, &value);
     if (err) {
         ESP_LOGV(TAG, "nvs_get_u32 fail: %s %s", key, nvs_error(err));
@@ -422,6 +469,7 @@ int64_t Preferences::getLong64(const char *key, const int64_t defaultValue) {
     if (!_started || !key) {
         return value;
     }
+
     esp_err_t err = nvs_get_i64(_handle, key, &value);
     if (err) {
         ESP_LOGV(TAG, "nvs_get_i64 fail: %s %s", key, nvs_error(err));
@@ -434,6 +482,7 @@ uint64_t Preferences::getULong64(const char *key, const uint64_t defaultValue) {
     if (!_started || !key) {
         return value;
     }
+
     esp_err_t err = nvs_get_u64(_handle, key, &value);
     if (err) {
         ESP_LOGV(TAG, "nvs_get_u64 fail: %s %s", key, nvs_error(err));
@@ -462,6 +511,7 @@ size_t Preferences::getString(const char *key, char *value, const size_t maxLen)
     if (!_started || !key || !value || !maxLen) {
         return 0;
     }
+
     esp_err_t err = nvs_get_str(_handle, key, NULL, &len);
     if (err) {
         ESP_LOGE(TAG, "nvs_get_str len fail: %s %s", key, nvs_error(err));
@@ -471,11 +521,13 @@ size_t Preferences::getString(const char *key, char *value, const size_t maxLen)
         ESP_LOGE(TAG, "not enough space in value: %u < %u", maxLen, len);
         return 0;
     }
+
     err = nvs_get_str(_handle, key, value, &len);
     if (err) {
         ESP_LOGE(TAG, "nvs_get_str fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     return len;
 }
 
@@ -484,6 +536,7 @@ size_t Preferences::getBytesLength(const char *key) {
     if (!_started || !key) {
         return 0;
     }
+
     esp_err_t err = nvs_get_blob(_handle, key, NULL, &len);
     if (err) {
         ESP_LOGE(TAG, "nvs_get_blob len fail: %s %s", key, nvs_error(err));
@@ -501,11 +554,13 @@ size_t Preferences::getBytes(const char *key, void *buf, size_t maxLen) {
         ESP_LOGE(TAG, "not enough space in buffer: %u < %u", maxLen, len);
         return 0;
     }
+
     esp_err_t err = nvs_get_blob(_handle, key, buf, &len);
     if (err) {
         ESP_LOGE(TAG, "nvs_get_blob fail: %s %s", key, nvs_error(err));
         return 0;
     }
+
     return len;
 }
 

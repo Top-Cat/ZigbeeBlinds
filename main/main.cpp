@@ -111,7 +111,7 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct) {
         if (leave_params->leave_type == ESP_ZB_NWK_LEAVE_TYPE_RESET) {
             ESP_LOGI(TAG, "Leave without rejoin, factory reset the device");
             esp_zb_factory_reset();
-        } else {  // Leave with rejoin -> Rejoin the network, only reboot the device
+        } else { // Leave with rejoin -> Rejoin the network, only reboot the device
             ESP_LOGI(TAG, "Leave with rejoin, only reboot the device");
             esp_restart();
         }
@@ -134,7 +134,7 @@ void handleResetButton() {
     button_pressed = false;
 
     uint64_t pressStart = esp_timer_get_time();
-    while (gpio_get_level(BUTTON_PIN) == 0) {
+    while (gpio_get_level(EXT_BUTTON_PIN) == 0) {
         vTaskDelay(50 / portTICK_PERIOD_MS);
         if (esp_timer_get_time() - pressStart > 3000000) {
             ESP_LOGW(TAG, "Resetting Zigbee to factory and rebooting in 1s.");
@@ -171,7 +171,7 @@ void handleHeartbeat() {
     }
 }
 
-static void main_task(void *pvParameters) {
+static void mainTask(void *pvParameters) {
     uint8_t local;
     while (true) {
         xQueueReceive(main_task_queue, &local, portMAX_DELAY);
@@ -181,8 +181,7 @@ static void main_task(void *pvParameters) {
     }
 }
 
-static esp_err_t esp_zb_power_save_init(void)
-{
+static esp_err_t powerSaveInit() {
     int cur_cpu_freq_mhz = CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ;
     esp_pm_config_t pm_config = {
         .max_freq_mhz = cur_cpu_freq_mhz,
@@ -192,11 +191,17 @@ static esp_err_t esp_zb_power_save_init(void)
     return esp_pm_configure(&pm_config);
 }
 
+void motorMove(uint8_t percent, uint16_t position, uint16_t actuations) {
+    zbEndpoint.setBlindState(percent, position, actuations);
+}
+
+Preferences prefs;
+
 extern "C" void app_main(void) {
     main_task_queue = xQueueCreate(4, sizeof(uint8_t));
 
     gpio_config_t gpioConfig = {
-        .pin_bit_mask = BIT(BUTTON_PIN),
+        .pin_bit_mask = BIT64(BUTTON_PIN) | BIT64(EXT_BUTTON_PIN),
         .mode = GPIO_MODE_INPUT,
         .pull_up_en = GPIO_PULLUP_ENABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -204,23 +209,34 @@ extern "C" void app_main(void) {
     };
     gpio_config(&gpioConfig);
 
-    // gpioConfig.pin_bit_mask = BIT(HV_CTL_PIN);
-    // gpioConfig.mode = GPIO_MODE_OUTPUT;
-    // gpioConfig.pull_up_en = GPIO_PULLUP_DISABLE;
-    // gpio_config(&gpioConfig);
-    // gpio_set_level(HV_CTL_PIN, 0);
-
-    adc.init();
-    // hdc2080.init();
-    motor.init();
-
-    /*gpio_install_isr_service(0);
-    gpio_isr_handler_add(BUTTON_PIN, buttonISR, NULL);
+    gpioConfig.pin_bit_mask = BIT64(LED_PIN) | BIT64(BAT_LOW_PIN);
+    gpioConfig.mode = GPIO_MODE_OUTPUT;
+    gpioConfig.pull_up_en = GPIO_PULLUP_DISABLE;
+    gpio_config(&gpioConfig);
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(EXT_BUTTON_PIN, buttonISR, NULL);
 
     ESP_ERROR_CHECK(nvs_flash_init());
-    ESP_ERROR_CHECK(esp_zb_power_save_init());
+    prefs.begin(NVS_NAMESPACE, false);
+    adc.init();
+    hdc2080.init();
 
-    zbEndpoint.init();
+    uint8_t zigbeeMv, zigbeePercent;
+    adc.getValue(zigbeeMv, zigbeePercent);
+    if (zigbeeMv < 60) {
+        // On USB power disable motor!
+        ESP_LOGW(TAG, "On USB power. Skipping motor init");
+    } else {
+        motor.init(&prefs);
+    }
+
+    printf("Init complete\n");
+
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    motor.identify();
+
+    ESP_ERROR_CHECK(powerSaveInit());
+    zbEndpoint.init(&prefs);
 
     zigbeeCore.registerEndpoint(&zbEndpoint);
     zigbeeCore.start();
@@ -232,6 +248,7 @@ extern "C" void app_main(void) {
     zbEndpoint.onConnect();
     zbEndpoint.requestOTA();
     zbEndpoint.fetchTime();
+    motor.moveCallback(motorMove);
 
-    xTaskCreate(main_task, "Main", 4096, NULL, 4, NULL);*/
+    xTaskCreate(mainTask, "Main", 4096, NULL, 4, NULL);
 }

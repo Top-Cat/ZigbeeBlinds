@@ -1,5 +1,32 @@
 import {Zcl} from 'zigbee-herdsman';
 import * as m from 'zigbee-herdsman-converters/lib/modernExtend';
+import {presets as e, access as ea} from 'zigbee-herdsman-converters/lib/exposes';
+import * as utils from 'zigbee-herdsman-converters/lib/utils';
+
+function blindNudge() {
+    const exposes = [];
+    exposes.push(
+        e.composite("nudge", "nudge", ea.SET)
+            .withDescription("Nudge position")
+            .withFeature(e.numeric("distance", ea.SET))
+    );
+
+    const toZigbee = [
+        {
+            key: ["nudge"],
+            convertSet: async (entity, key, value, meta) => {
+                utils.assertEndpoint(entity);
+
+                const data = { distance: value.distance };
+                await entity.command("tcSpecificBlind", "nudge", data);
+
+                return {};
+            }
+        }
+    ];
+
+    return {exposes, toZigbee, isModernExtend: true};
+}
 
 export default {
     zigbeeModel: ['Blinds'],
@@ -7,10 +34,42 @@ export default {
     vendor: 'TC',
     description: 'Somfy zigbee retrofit',
     extend: [
-        m.windowCovering({
-            controls: ["lift"],
-            coverMode: true
+        m.deviceAddCustomCluster("tcSpecificBlind", {
+            manufacturerCode: 0x1234,
+            ID: 0xFC13,
+            attributes: {
+                'setup': { ID: 0x0001, type: Zcl.DataType.BOOLEAN, write: true }
+            },
+            commands: {
+                setMin: { ID: 0xF1, parameters: [] },
+                setMax: { ID: 0xF2, parameters: [] },
+                nudge: { ID: 0xF3, parameters: [
+                    { name: "distance", type: Zcl.DataType.INT16 }
+                ] }
+            },
+            commandsResponse: {}
         }),
+        m.windowCovering({
+            controls: ["lift"]
+        }),
+        m.numeric({
+            name: "velocityLift",
+            label: "Velocity",
+            description: "Lift velocity",
+            cluster: "closuresWindowCovering",
+            attribute: "velocityLift",
+            valueMin: 0,
+            valueMax: 65534
+        }),
+        m.binary({
+            name: 'setup',
+            valueOn: ['ON', 1],
+            valueOff: ['OFF', 0],
+            cluster: 'tcSpecificBlind',
+            attribute: 'setup',
+            description: 'Enable setup mode'
+        }),
+        blindNudge(),
         m.identify(),
         m.battery({
             voltage: true

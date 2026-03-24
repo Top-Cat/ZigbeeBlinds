@@ -1,23 +1,55 @@
 #include "../config.h"
 
+#include "driver/pulse_cnt.h"
+#include "../prefs.h"
+
+#define WATCH_RESOLUTION INT16_MAX
+#define NVS_ACTUATIONS        "actuations"
+#define NVS_POSITION          "motorPos"
+
 class BlindMotor {
     private:
-        void updateSpeed(int16_t speed);
+        void updateSpeed(const int32_t speed);
+        void updateDesired(const int8_t speed);
         void motorPwmSetup();
         void feedbackSetup();
 
-        uint64_t _position = UINT32_MAX;
-        uint64_t _target = UINT32_MAX;
-        uint64_t _min = UINT32_MAX;
-        uint64_t _max = UINT32_MAX;
+        pcnt_unit_handle_t pcnt_unit = NULL;
+        uint64_t _position = INT64_MAX;
+        uint64_t _exactPosition = INT64_MAX;
+        uint64_t _target = INT64_MAX;
+
+        void receiveQueue(bool wait = false);
+
+        Preferences* _prefs;
+        uint64_t _min = 0;
+        uint64_t _max = UINT64_MAX;
+        int32_t _maxSpeed = 24000;
+        int32_t _minSpeed = 20000;
+        int32_t _speed = 0;
+        uint16_t _actuations = 0;
+        bool _setup = false;
+        bool _identify = false;
+
+        void updateTarget(const uint64_t newTarget);
+        void (*_on_move)(uint8_t, uint16_t, uint16_t);
     public:
-        void init();
-        void goPosition(uint64_t p);
-        void goPercent(uint8_t p);
+        void init(Preferences* prefs);
+        void goDirection(const bool up);
+        void goPosition(const uint64_t p);
+        void goPercent(const uint8_t p);
         void stop();
 
-        void setMin();
-        void setMax();
+        void identify();
+        void setSetup(const bool setup);
+        uint16_t getPosition();
+        void setVelocity(const uint16_t v);
+
+        uint64_t setMin();
+        uint64_t setMax();
+        void setEnds(const uint64_t min, const uint64_t max);
+        void nudge(const int16_t dist);
+        void moveCallback(void (*callback)(uint8_t, uint16_t, uint16_t));
 
         void task();
 };

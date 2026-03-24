@@ -45,8 +45,8 @@ bool BSADC::getValue(uint8_t &out, uint8_t &percent) {
     int adcValue;
     bool res = adc_oneshot_get_calibrated_result(adc_handle, cali_handle, (adc_channel_t) BAT_ADC_PIN, &adcValue) == ESP_OK;
     if (res) {
-        out = (uint8_t) ((adcValue * multiplier) + 50) / 100; // + 50 makes rounding correct
-        percent = (uint8_t) ((adcValue * multiplier) - BAT_LOW_MV) / percentMult;
+        out = (uint8_t) (((adcValue * multiplier) + 50) / 100); // + 50 makes rounding correct
+        percent = (uint8_t) (((adcValue * multiplier) - BAT_LOW_MV) / percentMult);
     }
 
     disable();
