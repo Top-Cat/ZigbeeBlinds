@@ -54,6 +54,7 @@ export default {
     zigbeeModel: ['Blinds'],
     model: 'Blinds',
     vendor: 'TC',
+    icon: 'device_icons/blind.png',
     description: 'Somfy zigbee retrofit',
     extend: [
         m.deviceAddCustomCluster("tcSpecificBlind", {

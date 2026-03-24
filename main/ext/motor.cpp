@@ -289,7 +289,7 @@ uint16_t BlindMotor::getPosition() {
 }
 
 uint8_t BlindMotor::getPercent() {
-    return ((_exactPosition - _min) * 100) / (_max - _min);
+    return ((_exactPosition - _min) * 101) / (_max - _min);
 }
 
 void BlindMotor::setVelocity(const uint16_t v) {
