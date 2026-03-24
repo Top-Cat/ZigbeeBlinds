@@ -25,7 +25,7 @@ class BlindMotor {
         uint64_t _min = 0;
         uint64_t _max = UINT64_MAX;
         int32_t _maxSpeed = 24000;
-        int32_t _minSpeed = 20000;
+        int32_t _minSpeed = 22000;
         int32_t _speed = 0;
         uint16_t _actuations = 0;
         bool _setup = false;

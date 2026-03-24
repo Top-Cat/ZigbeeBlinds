@@ -136,7 +136,7 @@ void BlindMotor::updateDesired(const int8_t speed) {
 }
 
 void BlindMotor::updateSpeed(const int32_t speed) {
-    if (_speed == 0 && speed != 0) _prefs->putUShort(NVS_ACTUATIONS, ++_actuations);
+    if (_speed == 0 && speed != 0 && _prefs != NULL) _prefs->putUShort(NVS_ACTUATIONS, ++_actuations);
     _speed = speed;
 
     bool forward = speed > 0;
@@ -217,7 +217,7 @@ void BlindMotor::task() {
             receiveQueue(false);
         } while (movingCheck-- > 0);
 
-        _prefs->putULong64(NVS_POSITION, _exactPosition);
+        if (_prefs != NULL) _prefs->putULong64(NVS_POSITION, _exactPosition);
         // printf("Stopped receiving motor updates. Stopped or stalled? %d, %llu, %llu\n", _speed, _exactPosition, _target);
     }
 }
@@ -265,7 +265,7 @@ uint64_t BlindMotor::setMax() {
 
 void BlindMotor::identify() {
     // Don't run identify while motor is running
-    if (_speed != 0) return;
+    if (_speed != 0 || motorQueue == NULL) return;
 
     _identify = true;
     updateDesired(100);
