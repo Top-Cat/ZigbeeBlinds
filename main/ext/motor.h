@@ -43,6 +43,7 @@ class BlindMotor {
         void identify();
         void setSetup(const bool setup);
         uint16_t getPosition();
+        uint8_t getPercent();
         void setVelocity(const uint16_t v);
 
         uint64_t setMin();

@@ -193,8 +193,7 @@ void BlindMotor::task() {
             lastLocalPosition = _exactPosition;
 
             if (_on_move != NULL) {
-                uint8_t percent = ((_exactPosition - _min) * 100) / (_max - _min);
-                _on_move(percent, getPosition(), _actuations);
+                _on_move(getPercent(), getPosition(), _actuations);
             }
 
             diff = absDiff(_exactPosition, _target);
@@ -211,6 +210,7 @@ void BlindMotor::task() {
                 localSpeed -= change;
             }
 
+            // printf("Motor task %d - %d - %llu - %llu\n", desiredSpeed, localSpeed, _exactPosition, _target);
             updateDesired(localSpeed);
 
             vTaskDelay(20 / portTICK_PERIOD_MS);
@@ -288,6 +288,10 @@ uint16_t BlindMotor::getPosition() {
     return (_exactPosition - _min) / (1 << 4);
 }
 
+uint8_t BlindMotor::getPercent() {
+    return ((_exactPosition - _min) * 100) / (_max - _min);
+}
+
 void BlindMotor::setVelocity(const uint16_t v) {
     _maxSpeed = (v / 8) + 24000;
 }
@@ -305,4 +309,5 @@ void BlindMotor::nudge(const int16_t dist) {
 
 void BlindMotor::moveCallback(void (*callback)(uint8_t, uint16_t, uint16_t)) {
     _on_move = callback;
+    _on_move(getPercent(), getPosition(), _actuations);
 }
