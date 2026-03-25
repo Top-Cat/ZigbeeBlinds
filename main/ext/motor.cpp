@@ -24,11 +24,13 @@ void BlindMotor::sensorPower(const bool p) {
     _sensorPower = p;
 
     if (p) {
+        ledc_timer_resume(LEDC_LOW_SPEED_MODE, LEDC_TIMER_0);
         gpio_set_level(ENCODER_PWR, 1);
         vTaskDelay(20 / portTICK_PERIOD_MS);
         pcnt_unit_enable(pcnt_unit);
         pcnt_unit_start(pcnt_unit);
     } else {
+        ledc_timer_pause(LEDC_LOW_SPEED_MODE, LEDC_TIMER_0);
         pcnt_unit_stop(pcnt_unit);
         pcnt_unit_disable(pcnt_unit);
         gpio_set_level(ENCODER_PWR, 0);

@@ -90,7 +90,7 @@ void ZigbeeCore::start() {
         .nwk_cfg = {
             .zed_cfg = {
                 .ed_timeout = ESP_ZB_ED_AGING_TIMEOUT_64MIN,
-                .keep_alive = 5000
+                .keep_alive = 8000
             }
         }
     };
@@ -318,9 +318,4 @@ void ZigbeeCore::searchBindings() {
     mb_req->start_index = 0;
     ESP_LOGD(TAG, "Requesting binding table for address 0x%04x", mb_req->dst_addr);
     esp_zb_zdo_binding_table_req(mb_req, bindingTableCb, (void *)mb_req);
-}
-
-void ZigbeeCore::deviceUpdate(esp_zb_zdo_signal_device_update_params_t* params) {
-    // NOT IMPLMENTED - Used for updating bindings
-    ESP_LOGW(TAG, "deviceUpdate not implemented");
 }

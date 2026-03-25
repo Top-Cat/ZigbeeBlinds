@@ -20,7 +20,6 @@ class ZigbeeCore {
         void registerEndpoint(ZigbeeDevice* device);
         void setChannelMask(uint32_t mask);
         void searchBindings();
-        void deviceUpdate(esp_zb_zdo_signal_device_update_params_t* params);
         esp_err_t handle(esp_zb_core_action_callback_id_t callback_id, const void *message);
         void handle(const zb_zcl_parsed_hdr_t* cmdInfo, const void* data);
 

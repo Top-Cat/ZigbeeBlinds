@@ -45,15 +45,12 @@ static void bdb_start_top_level_commissioning_cb(uint8_t mode_mask) {
 }
 
 void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct) {
-    uint32_t *p_sg_p       = signal_struct->p_app_signal;
+    uint32_t *p_sg_p = signal_struct->p_app_signal;
     esp_err_t err_status = signal_struct->esp_err_status;   
     esp_zb_app_signal_type_t sig_type = (esp_zb_app_signal_type_t)*p_sg_p;
     esp_zb_zdo_signal_leave_params_t *leave_params = NULL;
     esp_zb_zdo_signal_nwk_status_indication_params_s* nlme_params = NULL;
     uint8_t dummy = 0;
-
-    // Router
-    esp_zb_zdo_signal_device_update_params_t *dev_update_params = NULL;
 
     switch (sig_type) {
     case ESP_ZB_ZDO_SIGNAL_SKIP_STARTUP:
@@ -99,11 +96,6 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct) {
     case ESP_ZB_COMMON_SIGNAL_CAN_SLEEP:
         esp_zb_sleep_now();
         xQueueSend(main_task_queue, &dummy, 0);
-        break;
-    case ESP_ZB_ZDO_SIGNAL_DEVICE_UPDATE:
-        dev_update_params = (esp_zb_zdo_signal_device_update_params_t *)esp_zb_app_signal_get_params(p_sg_p);
-        ESP_LOGI(TAG, "New device commissioned or rejoined (short: 0x%04hx)", dev_update_params->short_addr);
-        zigbeeCore.deviceUpdate(dev_update_params);
         break;
     case ESP_ZB_ZDO_SIGNAL_LEAVE:
         leave_params = (esp_zb_zdo_signal_leave_params_t *)esp_zb_app_signal_get_params(p_sg_p);
