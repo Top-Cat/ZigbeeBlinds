@@ -54,7 +54,7 @@ void BlindMotor::motorPwmSetup() {
         .timer_sel      = LEDC_TIMER_0,
         .duty           = 0,
         .hpoint         = 0,
-        .sleep_mode     = LEDC_SLEEP_MODE_NO_ALIVE_NO_PD,
+        .sleep_mode     = LEDC_SLEEP_MODE_NO_ALIVE_ALLOW_PD,
         .flags = {
             .output_invert = false
         },
