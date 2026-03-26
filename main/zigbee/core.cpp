@@ -10,7 +10,7 @@ ZigbeeCore zigbeeCore;
 static void esp_zb_task(void *pvParameters) {
     ESP_ERROR_CHECK(esp_zb_start(false));
 
-    zb_set_ed_node_descriptor(0, false, 1);
+    // zb_set_ed_node_descriptor(0, false, 1);
     esp_zb_stack_main_loop();
 }
 
@@ -90,7 +90,7 @@ void ZigbeeCore::start() {
         .nwk_cfg = {
             .zed_cfg = {
                 .ed_timeout = ESP_ZB_ED_AGING_TIMEOUT_64MIN,
-                .keep_alive = 8000
+                .keep_alive = 4000
             }
         }
     };

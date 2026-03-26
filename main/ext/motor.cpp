@@ -27,12 +27,18 @@ void BlindMotor::sensorPower(const bool p) {
         ledc_timer_resume(LEDC_LOW_SPEED_MODE, LEDC_TIMER_0);
         gpio_set_level(ENCODER_PWR, 1);
         vTaskDelay(20 / portTICK_PERIOD_MS);
-        pcnt_unit_enable(pcnt_unit);
-        pcnt_unit_start(pcnt_unit);
+        pcntSetup();
     } else {
         ledc_timer_pause(LEDC_LOW_SPEED_MODE, LEDC_TIMER_0);
+
+        _position = _exactPosition;
         pcnt_unit_stop(pcnt_unit);
         pcnt_unit_disable(pcnt_unit);
+        pcnt_del_channel(pcnt_chan_a);
+        pcnt_del_channel(pcnt_chan_b);
+        pcnt_del_unit(pcnt_unit);
+        pcnt_unit = NULL;
+
         gpio_set_level(ENCODER_PWR, 0);
     }
 }
@@ -81,6 +87,10 @@ void BlindMotor::feedbackSetup() {
     gpio_config(&gpioConfig);
     gpio_set_level(ENCODER_PWR, 1);
 
+    pcntSetup();
+}
+
+void BlindMotor::pcntSetup() {
     pcnt_unit_config_t unit_config = {
         .clk_src = PCNT_CLK_SRC_DEFAULT,
         .low_limit = -WATCH_RESOLUTION,
@@ -107,7 +117,6 @@ void BlindMotor::feedbackSetup() {
             .virt_level_io_level = false
         }
     };
-    pcnt_channel_handle_t pcnt_chan_a = NULL;
     ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_a_config, &pcnt_chan_a));
 
     pcnt_chan_config_t chan_b_config = {
@@ -120,7 +129,6 @@ void BlindMotor::feedbackSetup() {
             .virt_level_io_level = false
         }
     };
-    pcnt_channel_handle_t pcnt_chan_b = NULL;
     ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_b_config, &pcnt_chan_b));
 
     ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_a, PCNT_CHANNEL_EDGE_ACTION_DECREASE, PCNT_CHANNEL_EDGE_ACTION_INCREASE));
@@ -134,7 +142,6 @@ void BlindMotor::feedbackSetup() {
     pcnt_event_callbacks_t cbs = {
         .on_reach = pcnt_cb,
     };
-    motorQueue = xQueueCreate(10, sizeof(int));
     ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(pcnt_unit, &cbs, motorQueue));
 
     ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
@@ -178,6 +185,7 @@ void BlindMotor::init(Preferences* prefs) {
     motorPwmSetup();
     feedbackSetup();
 
+    motorQueue = xQueueCreate(10, sizeof(int));
     xTaskCreate(motor_task, "Motor", 4096, NULL, 4, NULL);
 }
 
@@ -205,9 +213,11 @@ void BlindMotor::task() {
         if (_identify) continue;
 
         movingCheck = 3;
+        localSpeed = 0;
+
         do {
             int offset = 0;
-            pcnt_unit_get_count(pcnt_unit, &offset);
+            if (pcnt_unit != NULL) pcnt_unit_get_count(pcnt_unit, &offset);
 
             _exactPosition = _position + offset;
             if (lastLocalPosition != _exactPosition) movingCheck = 3;
@@ -239,7 +249,7 @@ void BlindMotor::task() {
         } while (movingCheck-- > 0);
 
         if (_prefs != NULL) _prefs->putULong64(NVS_POSITION, _exactPosition);
-        // printf("Stopped receiving motor updates. Stopped or stalled? %d, %llu, %llu\n", _speed, _exactPosition, _target);
+        // printf("Stopped receiving motor updates. Stopped or stalled? %ld, %llu, %llu\n", _speed, _exactPosition, _target);
         sensorPower(false);
     }
 }

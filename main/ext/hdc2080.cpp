@@ -9,6 +9,15 @@ void IRAM_ATTR dataReadyISR(void* data) {
     xSemaphoreGive(lock);
 }
 
+void HDC2080::initMutex() {
+    i2c.port = I2C_NUM_0;
+    i2c.addr = addr;
+    i2c.cfg.master.clk_speed = 400000;
+    i2c.cfg.sda_io_num = TEMP_SDA_PIN;
+    i2c.cfg.scl_io_num = TEMP_SCL_PIN;
+    i2c_dev_create_mutex(&i2c);
+}
+
 void HDC2080::init() {
     if (!lock) {
         lock = xSemaphoreCreateBinary();
@@ -25,13 +34,7 @@ void HDC2080::init() {
 
     ESP_ERROR_CHECK(i2cdev_init());
 
-    i2c.port = I2C_NUM_0;
-    i2c.addr = addr;
-    i2c.cfg.master.clk_speed = 400000;
-    i2c.cfg.sda_io_num = TEMP_SDA_PIN;
-    i2c.cfg.scl_io_num = TEMP_SCL_PIN;
-    i2c_dev_create_mutex(&i2c);
-
+    initMutex();
     initDevice();
     gpio_isr_handler_add(TEMP_INT_PIN, dataReadyISR, NULL);
 }
@@ -62,6 +65,9 @@ esp_err_t HDC2080::update() {
     if (lastUpdate + (1 * 1000 * 1000) > esp_timer_get_time() && rawTemperature > 0 && rawHumidity > 0) return ESP_OK;
     lastUpdate = esp_timer_get_time();
 
+    i2cdev_init();
+    initMutex();
+
     const HMeasCfg meas = {
         .trigger = true,
         .source = MEASURE_TEMP_HUMIDITY,
@@ -89,6 +95,9 @@ esp_err_t HDC2080::update() {
     maxHumidity = raw_data[6];
 
     I2C_DEV_GIVE_MUTEX(&i2c);
+
+    i2c_dev_delete_mutex(&i2c);
+    i2cdev_done();
 
     return ESP_OK;
 }

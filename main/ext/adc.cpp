@@ -29,12 +29,14 @@ void BSADC::init() {
 }
 
 void BSADC::enable() {
+    init();
     gpio_set_direction(BAT_LOW_PIN, GPIO_MODE_OUTPUT);
     gpio_set_level(BAT_LOW_PIN, 0);
 }
 
 void BSADC::disable() {
     gpio_set_direction(BAT_LOW_PIN, GPIO_MODE_INPUT);
+    adc_oneshot_del_unit(adc_handle);
 }
 
 bool BSADC::getValue(uint8_t &out, uint8_t &percent) {

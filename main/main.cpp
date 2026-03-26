@@ -74,7 +74,7 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct) {
             }
         } else {
             // commissioning failed
-            ESP_LOGW(TAG, "Failed to initialize Zigbee stack (status: %s)", esp_err_to_name(err_status));
+            ESP_LOGW(TAG, "Failed to initialize Zigbee stack (status: %d)", err_status);
             esp_zb_scheduler_alarm((esp_zb_callback_t)bdb_start_top_level_commissioning_cb, ESP_ZB_BDB_MODE_INITIALIZATION, 500);
         }
         break;
@@ -89,7 +89,7 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct) {
             zigbeeCore.connected = true;
             zigbeeCore.setChannelMask(1 << esp_zb_get_current_channel());
         } else {
-            ESP_LOGI(TAG, "Network steering was not successful (status: %s)", esp_err_to_name(err_status));
+            ESP_LOGV(TAG, "Network steering was not successful (status: %d)", err_status);
             esp_zb_scheduler_alarm((esp_zb_callback_t)bdb_start_top_level_commissioning_cb, ESP_ZB_BDB_MODE_NETWORK_STEERING, 1000);
         }
         break;
@@ -146,7 +146,7 @@ void handleHeartbeat() {
         // Every hour
         uint8_t zigbeeMv, zigbeePercent;
         if (adc.getValue(zigbeeMv, zigbeePercent)) {
-            ESP_LOGV(TAG, "ADC result = %d, %d", zigbeeMv, zigbeePercent);
+            ESP_LOGI(TAG, "ADC result = %d, %d", zigbeeMv, zigbeePercent);
             zbEndpoint.setBattery(zigbeeMv, zigbeePercent);
         }
 
@@ -174,9 +174,10 @@ static void mainTask(void *pvParameters) {
 }
 
 static esp_err_t powerSaveInit() {
+    int cur_cpu_freq_mhz = CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ;
     esp_pm_config_t pm_config = {
-        .max_freq_mhz = 80,
-        .min_freq_mhz = 10,
+        .max_freq_mhz = cur_cpu_freq_mhz,
+        .min_freq_mhz = cur_cpu_freq_mhz,
         .light_sleep_enable = true
     };
     return esp_pm_configure(&pm_config);
@@ -189,6 +190,7 @@ void motorMove(uint8_t percent, uint16_t position, uint16_t actuations) {
 Preferences prefs;
 
 extern "C" void app_main(void) {
+    powerSaveInit();
     main_task_queue = xQueueCreate(4, sizeof(uint8_t));
 
     gpio_config_t gpioConfig = {
@@ -209,7 +211,6 @@ extern "C" void app_main(void) {
 
     ESP_ERROR_CHECK(nvs_flash_init());
     prefs.begin(NVS_NAMESPACE, false);
-    adc.init();
     hdc2080.init();
 
     uint8_t zigbeeMv, zigbeePercent;
@@ -226,7 +227,6 @@ extern "C" void app_main(void) {
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     motor.identify();
 
-    ESP_ERROR_CHECK(powerSaveInit());
     zbEndpoint.init(&prefs);
 
     zigbeeCore.registerEndpoint(&zbEndpoint);

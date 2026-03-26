@@ -108,6 +108,7 @@ class HDC2080 {
         uint8_t maxTemperature = 0;
         uint8_t maxHumidity = 0;
 
+        void initMutex();
         esp_err_t initDevice();
         esp_err_t update();
     public:

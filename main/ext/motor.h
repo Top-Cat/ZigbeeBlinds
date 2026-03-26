@@ -12,12 +12,15 @@ class BlindMotor {
         void updateSpeed(const int32_t speed);
         void updateDesired(const int8_t speed);
         void motorPwmSetup();
+        void pcntSetup();
         void feedbackSetup();
 
         bool _sensorPower = true;
         void sensorPower(const bool p);
 
         pcnt_unit_handle_t pcnt_unit = NULL;
+        pcnt_channel_handle_t pcnt_chan_a = NULL;
+        pcnt_channel_handle_t pcnt_chan_b = NULL;
         uint64_t _position = INT64_MAX;
         uint64_t _exactPosition = INT64_MAX;
         uint64_t _target = INT64_MAX;
