@@ -254,7 +254,7 @@ void ZigbeeSensor::zbAttributeSet(const esp_zb_zcl_set_attr_value_message_t *mes
         uint16_t state = *(uint16_t *)message->attribute.data.value;
         gpio_hold_dis(LED_PIN);
         gpio_set_level(LED_PIN, state % 2);
-        gpio_hold_en(LED_PIN);
+        if (state > 0) gpio_hold_en(LED_PIN);
     } else if (message->info.cluster == ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING) {
         switch (message->attribute.id) {
             case ESP_ZB_ZCL_ATTR_WINDOW_COVERING_VELOCITY_ID:

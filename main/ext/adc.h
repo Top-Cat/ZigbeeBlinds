@@ -5,8 +5,8 @@
 
 #define R1_K 2000
 #define R2_K 470
-#define BAT_HIGH_MV 12600
-#define BAT_LOW_MV 8400
+#define BAT_HIGH_MV 12500
+#define BAT_LOW_MV 8800
 
 class BSADC {
     public:
