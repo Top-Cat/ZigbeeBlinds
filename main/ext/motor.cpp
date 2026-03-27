@@ -248,6 +248,7 @@ void BlindMotor::task() {
             receiveQueue(false);
         } while (movingCheck-- > 0);
 
+        updateDesired(0);
         if (_prefs != NULL) _prefs->putULong64(NVS_POSITION, _exactPosition);
         // printf("Stopped receiving motor updates. Stopped or stalled? %ld, %llu, %llu\n", _speed, _exactPosition, _target);
         sensorPower(false);
