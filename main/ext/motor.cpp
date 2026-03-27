@@ -288,12 +288,12 @@ void BlindMotor::stop() {
 }
 
 uint64_t BlindMotor::setMin() {
-    if (!_setup) return;
+    if (!_setup) return _min;
     return _min = _exactPosition;
 }
 
 uint64_t BlindMotor::setMax() {
-    if (!_setup) return;
+    if (!_setup) return _max;
     return _max = _exactPosition;
 }
 
