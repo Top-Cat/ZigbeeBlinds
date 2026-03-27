@@ -54,6 +54,7 @@ class BlindMotor {
 
         uint64_t setMin();
         uint64_t setMax();
+        void setMinSpeed(int32_t speed);
         void setEnds(const uint64_t min, const uint64_t max);
         void nudge(const int16_t dist);
         void moveCallback(void (*callback)(uint8_t, uint16_t, uint16_t));

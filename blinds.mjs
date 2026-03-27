@@ -61,7 +61,8 @@ export default {
             manufacturerCode: 0x1234,
             ID: 0xFC13,
             attributes: {
-                'setup': { ID: 0x0001, type: Zcl.DataType.BOOLEAN, write: true }
+                'setup': { ID: 0x0001, type: Zcl.DataType.BOOLEAN, write: true },
+                'minSpeed': { ID: 0x0002, type: Zcl.DataType.INT32, write: true, max: 0xffff }
             },
             commands: {
                 setMin: { ID: 0xF1, parameters: [] },
@@ -81,6 +82,15 @@ export default {
             description: "Lift velocity",
             cluster: "closuresWindowCovering",
             attribute: "velocityLift",
+            valueMin: 0,
+            valueMax: 65534
+        }),
+        m.numeric({
+            name: "minSpeed",
+            label: "Min Speed",
+            description: "Minimum speed when nearing end of movement",
+            cluster: "tcSpecificBlind",
+            attribute: "minSpeed",
             valueMin: 0,
             valueMax: 65534
         }),

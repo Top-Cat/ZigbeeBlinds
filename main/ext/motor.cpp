@@ -297,6 +297,10 @@ uint64_t BlindMotor::setMax() {
     return _max = _exactPosition;
 }
 
+void BlindMotor::setMinSpeed(int32_t speed) {
+    _minSpeed = speed;
+}
+
 void BlindMotor::identify() {
     // Don't run identify while motor is running
     if (_speed != 0 || motorQueue == NULL) return;

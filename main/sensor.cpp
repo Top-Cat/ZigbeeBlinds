@@ -79,6 +79,16 @@ void ZigbeeSensor::createCustomClusters(esp_zb_cluster_list_t* cluster_list) {
         &val
     );
 
+    esp_zb_cluster_add_manufacturer_attr(
+        blinds_cluster,
+        MS_BLIND_CLUSTER_ID,
+        ATTR_MIN_SPEED_ID,
+        MANUFACTURER_CODE,
+        ESP_ZB_ZCL_ATTR_TYPE_S32,
+        ESP_ZB_ZCL_ATTR_ACCESS_READ_WRITE,
+        &val
+    );
+
     esp_zb_cluster_list_add_custom_cluster(cluster_list, blinds_cluster, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
 }
 
@@ -205,22 +215,26 @@ void ZigbeeSensor::init(Preferences* prefs) {
     velocity = _prefs->getUShort(NVS_VELOCITY, INT16_MAX);
     min = _prefs->getULong64(NVS_MIN, 0);
     uint64_t lmax = _prefs->getULong64(NVS_MAX, UINT64_MAX);
+    minSpeed = _prefs->getInt(NVS_MIN_SPEED, 22000);
     max = (lmax - min) / (1 << 4);
 
     motor.setVelocity(velocity);
     motor.setEnds(min, lmax);
+    motor.setMinSpeed(minSpeed);
 }
 
 void ZigbeeSensor::onConnect() {
     esp_zb_lock_acquire(portMAX_DELAY);
-    uint32_t varArr[] = {
-        velocity, max
+    void* varArr[] = {
+        &velocity, &max, &minSpeed
     };
     uint16_t attrIdArr[] = {
-        ESP_ZB_ZCL_ATTR_WINDOW_COVERING_VELOCITY_ID, ESP_ZB_ZCL_ATTR_WINDOW_COVERING_INSTALLED_CLOSED_LIMIT_LIFT_ID
+        ESP_ZB_ZCL_ATTR_WINDOW_COVERING_VELOCITY_ID, ESP_ZB_ZCL_ATTR_WINDOW_COVERING_INSTALLED_CLOSED_LIMIT_LIFT_ID,
+        ATTR_MIN_SPEED_ID
     };
     uint16_t clusterIdArr[] = {
-        ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING, ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING
+        ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING, ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
+        MS_BLIND_CLUSTER_ID
     };
     uint8_t items = sizeof(attrIdArr) / sizeof(uint16_t);
 
@@ -232,7 +246,7 @@ void ZigbeeSensor::onConnect() {
                 ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
                 MANUFACTURER_CODE,
                 attrIdArr[i],
-                &varArr[i],
+                varArr[i],
                 false
             );
         } else {
@@ -241,7 +255,7 @@ void ZigbeeSensor::onConnect() {
                 clusterIdArr[i],
                 ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
                 attrIdArr[i],
-                &varArr[i],
+                varArr[i],
                 false
             );
         }
@@ -264,8 +278,19 @@ void ZigbeeSensor::zbAttributeSet(const esp_zb_zcl_set_attr_value_message_t *mes
                 break;
         }
     } else if (message->info.cluster == MS_BLIND_CLUSTER_ID) {
-        bool setup = *(bool *)message->attribute.data.value;
-        motor.setSetup(setup);
+        switch (message->attribute.id) {
+            case ATTR_SETUP_ID: {
+                bool setup = *(bool *)message->attribute.data.value;
+                motor.setSetup(setup);
+                break;
+            }
+            case ATTR_MIN_SPEED_ID: {
+                minSpeed = *(int32_t *)message->attribute.data.value;
+                _prefs->putInt(NVS_MIN_SPEED, minSpeed);
+                motor.setMinSpeed(minSpeed);
+                break;
+            }
+        }
     }
 }
 
