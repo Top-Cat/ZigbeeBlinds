@@ -222,7 +222,7 @@ extern "C" void app_main(void) {
         motor.init(&prefs);
     }
 
-    printf("Init complete\n");
+    // printf("Init complete\n");
 
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     motor.identify();
@@ -237,6 +237,7 @@ extern "C" void app_main(void) {
     }
 
     zbEndpoint.onConnect();
+    zbEndpoint.setBattery(zigbeeMv, zigbeePercent);
     zbEndpoint.requestOTA();
     zbEndpoint.fetchTime();
     motor.moveCallback(motorMove);
