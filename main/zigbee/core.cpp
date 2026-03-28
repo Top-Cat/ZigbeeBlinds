@@ -90,7 +90,7 @@ void ZigbeeCore::start() {
         .nwk_cfg = {
             .zed_cfg = {
                 .ed_timeout = ESP_ZB_ED_AGING_TIMEOUT_64MIN,
-                .keep_alive = 4000
+                .keep_alive = 8000
             }
         }
     };

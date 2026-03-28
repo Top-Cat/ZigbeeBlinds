@@ -106,7 +106,10 @@ export default {
         minMax(),
         m.identify(),
         m.battery({
-            voltage: true
+            voltage: true,
+            voltageReporting: true,
+            percentageReportingConfig: {min: "1_HOUR", max: "4_HOURS", change: 5},
+            voltageReportingConfig: {min: "1_HOUR", max: "4_HOURS", change: 5}
         }),
         m.temperature(),
         m.humidity()

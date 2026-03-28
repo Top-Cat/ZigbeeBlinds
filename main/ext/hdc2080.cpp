@@ -62,7 +62,7 @@ esp_err_t HDC2080::initDevice() {
 
 esp_err_t HDC2080::update() {
     // If we updated recently and we have data, skip update
-    if (lastUpdate + (1 * 1000 * 1000) > esp_timer_get_time() && rawTemperature > 0 && rawHumidity > 0) return ESP_OK;
+    if (lastUpdate + (10 * 1000 * 1000) > esp_timer_get_time() && rawTemperature > 0 && rawHumidity > 0) return ESP_OK;
     lastUpdate = esp_timer_get_time();
 
     i2cdev_init();
@@ -80,7 +80,7 @@ esp_err_t HDC2080::update() {
     I2C_DEV_CHECK(&i2c, i2c_dev_write_reg(&i2c, HCmd::MEASUREMENT_CFG, &meas, sizeof(meas)));
 
     // Wait for data to be ready
-    if (xSemaphoreTake(lock, 1000 / portTICK_PERIOD_MS) != pdTRUE) {
+    if (gpio_get_level(TEMP_INT_PIN) == 0 && xSemaphoreTake(lock, 1000 / portTICK_PERIOD_MS) != pdTRUE) {
         // Failed
         I2C_DEV_GIVE_MUTEX(&i2c);
         return ESP_FAIL;
