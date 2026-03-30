@@ -89,6 +89,16 @@ void ZigbeeSensor::createCustomClusters(esp_zb_cluster_list_t* cluster_list) {
         &val
     );
 
+    esp_zb_cluster_add_manufacturer_attr(
+        blinds_cluster,
+        MS_BLIND_CLUSTER_ID,
+        ATTR_INVERT_ID,
+        MANUFACTURER_CODE,
+        ESP_ZB_ZCL_ATTR_TYPE_BOOL,
+        ESP_ZB_ZCL_ATTR_ACCESS_READ_WRITE,
+        &val
+    );
+
     esp_zb_cluster_list_add_custom_cluster(cluster_list, blinds_cluster, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
 }
 
