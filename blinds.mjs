@@ -62,7 +62,8 @@ export default {
             ID: 0xFC13,
             attributes: {
                 'setup': { ID: 0x0001, type: Zcl.DataType.BOOLEAN, write: true },
-                'minSpeed': { ID: 0x0002, type: Zcl.DataType.INT32, write: true, max: 0xffff }
+                'minSpeed': { ID: 0x0002, type: Zcl.DataType.INT32, write: true, max: 0xffff },
+                'invert': { ID: 0x0003, type: Zcl.DataType.BOOLEAN, write: true }
             },
             commands: {
                 setMin: { ID: 0xF1, parameters: [] },
@@ -101,6 +102,14 @@ export default {
             cluster: 'tcSpecificBlind',
             attribute: 'setup',
             description: 'Enable setup mode'
+        }),
+        m.binary({
+            name: 'invert',
+            valueOn: ['ON', 1],
+            valueOff: ['OFF', 0],
+            cluster: 'tcSpecificBlind',
+            attribute: 'invert',
+            description: 'Invert direction'
         }),
         blindNudge(),
         minMax(),

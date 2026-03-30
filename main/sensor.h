@@ -8,6 +8,7 @@
 #define MS_BLIND_CLUSTER_ID      0xFC13
 #define ATTR_SETUP_ID            0x01
 #define ATTR_MIN_SPEED_ID        0x02
+#define ATTR_INVERT_ID           0x03
 #define CMD_SET_MIN_ID           0xF1
 #define CMD_SET_MAX_ID           0xF2
 #define CMD_NUDGE_ID             0xF3
@@ -18,6 +19,7 @@
 #define NVS_MIN               "min"
 #define NVS_MAX               "max"
 #define NVS_MIN_SPEED         "minspeed"
+#define NVS_INVERT            "invert"
 
 class ZigbeeSensor : public ZigbeeDevice {
     public:
@@ -50,6 +52,9 @@ class ZigbeeSensor : public ZigbeeDevice {
         uint64_t min = 0;
         int32_t minSpeed = 0;
         uint16_t max = 0;
+        bool invert = false;
+
+        void setLimit(bool minOrMax);
 
         Preferences* _prefs;
 

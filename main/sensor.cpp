@@ -216,6 +216,7 @@ void ZigbeeSensor::init(Preferences* prefs) {
     min = _prefs->getULong64(NVS_MIN, 0);
     uint64_t lmax = _prefs->getULong64(NVS_MAX, UINT64_MAX);
     minSpeed = _prefs->getInt(NVS_MIN_SPEED, 22000);
+    invert = _prefs->getBool(NVS_INVERT, false);
     max = (lmax - min) / (1 << 4);
 
     motor.setVelocity(velocity);
@@ -226,15 +227,15 @@ void ZigbeeSensor::init(Preferences* prefs) {
 void ZigbeeSensor::onConnect() {
     esp_zb_lock_acquire(portMAX_DELAY);
     void* varArr[] = {
-        &velocity, &max, &minSpeed
+        &velocity, &max, &minSpeed, &invert
     };
     uint16_t attrIdArr[] = {
         ESP_ZB_ZCL_ATTR_WINDOW_COVERING_VELOCITY_ID, ESP_ZB_ZCL_ATTR_WINDOW_COVERING_INSTALLED_CLOSED_LIMIT_LIFT_ID,
-        ATTR_MIN_SPEED_ID
+        ATTR_MIN_SPEED_ID, ATTR_INVERT_ID
     };
     uint16_t clusterIdArr[] = {
         ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING, ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
-        MS_BLIND_CLUSTER_ID
+        MS_BLIND_CLUSTER_ID, MS_BLIND_CLUSTER_ID
     };
     uint8_t items = sizeof(attrIdArr) / sizeof(uint16_t);
 
@@ -284,61 +285,75 @@ void ZigbeeSensor::zbAttributeSet(const esp_zb_zcl_set_attr_value_message_t *mes
                 motor.setSetup(setup);
                 break;
             }
-            case ATTR_MIN_SPEED_ID: {
+            case ATTR_MIN_SPEED_ID:
                 minSpeed = *(int32_t *)message->attribute.data.value;
                 _prefs->putInt(NVS_MIN_SPEED, minSpeed);
                 motor.setMinSpeed(minSpeed);
                 break;
-            }
+            case ATTR_INVERT_ID:
+                invert = *(bool *)message->attribute.data.value;
+                _prefs->putBool(NVS_INVERT, invert);
+                break;
         }
     }
 }
 
+void ZigbeeSensor::setLimit(bool minOrMax) {
+    uint64_t lmax = 0;
+    if (minOrMax ^ invert) {
+        min = motor.setMin();
+        _prefs->putULong64(NVS_MIN, min);
+        lmax = _prefs->getULong64(NVS_MAX, UINT64_MAX);
+    } else {
+        lmax = motor.setMax();
+        _prefs->putULong64(NVS_MAX, lmax);
+    }
+
+    max = (lmax - min) / (1 << 4);
+    esp_zb_zcl_set_attribute_val(
+        _endpoint,
+        ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
+        ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+        ESP_ZB_ZCL_ATTR_WINDOW_COVERING_INSTALLED_CLOSED_LIMIT_LIFT_ID,
+        &max,
+        false
+    );
+}
+
 void ZigbeeSensor::zbCommand(const zb_zcl_parsed_hdr_t* cmdInfo, const void* data) {
     if (cmdInfo->cluster_id == MS_BLIND_CLUSTER_ID) {
-        uint64_t temp;
         switch (cmdInfo->cmd_id) {
             case CMD_SET_MIN_ID:
-                min = motor.setMin();
-                _prefs->putULong64(NVS_MIN, min);
+                setLimit(true);
                 break;
             case CMD_SET_MAX_ID:
-                temp = motor.setMax();
-                _prefs->putULong64(NVS_MAX, temp);
-                max = (temp - min) / (1 << 4);
-
-                esp_zb_zcl_set_attribute_val(
-                    _endpoint,
-                    ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
-                    ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
-                    ESP_ZB_ZCL_ATTR_WINDOW_COVERING_INSTALLED_CLOSED_LIMIT_LIFT_ID,
-                    &max,
-                    false
-                );
+                setLimit(false);
                 break;
             case CMD_NUDGE_ID:
-                motor.nudge(*(int16_t *)data);
+                motor.nudge(*(int16_t *)data * (invert ? -1 : 1));
                 break;
         }
     } else if (cmdInfo->cluster_id == ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING) {
         switch (cmdInfo->cmd_id) {
             case ESP_ZB_ZCL_CMD_WINDOW_COVERING_UP_OPEN:
                 // Up
-                return motor.goDirection(true);
+                return motor.goDirection(!invert);
             case ESP_ZB_ZCL_CMD_WINDOW_COVERING_DOWN_CLOSE:
                 // Down
-                return motor.goDirection(false);
+                return motor.goDirection(invert);
             case ESP_ZB_ZCL_CMD_WINDOW_COVERING_STOP:
                 // Stop
                 return motor.stop();
             case ESP_ZB_ZCL_CMD_WINDOW_COVERING_GO_TO_LIFT_VALUE: {
                 // Go to position
                 uint16_t position = *(uint16_t *)data;
+                if (invert) position = max - position;
                 return motor.goPosition(min + (position * (1 << 4)));
             }
             case ESP_ZB_ZCL_CMD_WINDOW_COVERING_GO_TO_LIFT_PERCENTAGE: {
                 // Go to percentage
                 uint8_t percent = *(uint8_t *)data;
+                if (invert) percent = 100 - percent;
                 return motor.goPercent(percent);
             }
         }
@@ -445,6 +460,11 @@ bool ZigbeeSensor::setHumidity(float humidity) {
 
 bool ZigbeeSensor::setBlindState(uint8_t percent, uint16_t position, uint16_t actuations) {
     esp_zb_zcl_status_t ret, ret2, ret3 = ESP_ZB_ZCL_STATUS_SUCCESS;
+
+    if (invert) {
+        percent = 100 - percent;
+        position = max - position;
+    }
 
     esp_zb_lock_acquire(portMAX_DELAY);
     ret = esp_zb_zcl_set_attribute_val(
