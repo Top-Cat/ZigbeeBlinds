@@ -16,7 +16,7 @@ class ZigbeeCore {
     public:
         ZigbeeCore();
         ~ZigbeeCore() {}
-        void start();
+        void start(uint32_t keepAlive = 8000);
         void registerEndpoint(ZigbeeDevice* device);
         void setChannelMask(uint32_t mask);
         void searchBindings();

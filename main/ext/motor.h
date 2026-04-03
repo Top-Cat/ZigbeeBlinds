@@ -25,20 +25,22 @@ class BlindMotor {
         uint64_t _exactPosition = INT64_MAX;
         uint64_t _target = INT64_MAX;
 
-        void receiveQueue(bool wait = false);
+        void receiveQueue(const bool wait = false);
 
         Preferences* _prefs;
         uint64_t _min = 0;
         uint64_t _max = UINT64_MAX;
         int32_t _maxSpeed = 24000;
         int32_t _minSpeed = 22000;
+        uint16_t _offset = 0;
+        bool _offsetDir = false;
         int32_t _speed = 0;
         uint16_t _actuations = 0;
         bool _setup = false;
         bool _identify = false;
 
         void updateTarget(const uint64_t newTarget);
-        void (*_on_move)(uint8_t, uint16_t, uint16_t);
+        void (*_on_move)(const uint8_t, const uint16_t, const uint16_t);
     public:
         void init(Preferences* prefs);
         void goDirection(const bool up);
@@ -54,10 +56,11 @@ class BlindMotor {
 
         uint64_t setMin();
         uint64_t setMax();
-        void setMinSpeed(int32_t speed);
+        void setMinSpeed(const int32_t speed);
+        void setOffset(const uint16_t offset, const bool dir);
         void setEnds(const uint64_t min, const uint64_t max);
         void nudge(const int16_t dist);
-        void moveCallback(void (*callback)(uint8_t, uint16_t, uint16_t));
+        void moveCallback(void (*callback)(const uint8_t, const uint16_t, const uint16_t));
 
         void task();
 };

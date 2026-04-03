@@ -156,6 +156,7 @@ void BlindMotor::updateDesired(const int8_t speed) {
     uint16_t speedRange = _maxSpeed - _minSpeed;
     int32_t lerp = _minSpeed + (((speedAbs - 1) * speedRange) / 99);
     int32_t newSpeed = speed == 0 ? 0 : (sign ? -lerp : lerp);
+    if (_offsetDir == sign) newSpeed += (_offset / 4);
 
     updateSpeed(newSpeed);
 }
@@ -193,7 +194,7 @@ uint64_t absDiff(uint64_t a, uint64_t b) {
     return a > b ? a - b : b - a;
 }
 
-void BlindMotor::receiveQueue(bool wait) {
+void BlindMotor::receiveQueue(const bool wait) {
     int eventCount = 0;
     if (xQueueReceive(motorQueue, &eventCount, wait ? portMAX_DELAY : 0)) {
         _position += eventCount;
@@ -333,6 +334,11 @@ uint8_t BlindMotor::getPercent() {
 
 void BlindMotor::setVelocity(const uint16_t v) {
     _maxSpeed = (v / 8) + 24000;
+}
+
+void BlindMotor::setOffset(const uint16_t v, const bool dir) {
+    _offset = v;
+    _offsetDir = dir;
 }
 
 void BlindMotor::setEnds(const uint64_t min, const uint64_t max) {

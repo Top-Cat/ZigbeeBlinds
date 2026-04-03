@@ -69,7 +69,7 @@ bool zb_apsde_data_indication_handler(esp_zb_apsde_data_ind_t ind) {
     return false;  //False to let the stack process the message as usual
 }
 
-void ZigbeeCore::start() {
+void ZigbeeCore::start(uint32_t keepAlive) {
     ESP_ERROR_CHECK(nvs_flash_init());
 
     esp_zb_platform_config_t config = {
@@ -90,7 +90,7 @@ void ZigbeeCore::start() {
         .nwk_cfg = {
             .zed_cfg = {
                 .ed_timeout = ESP_ZB_ED_AGING_TIMEOUT_64MIN,
-                .keep_alive = 8000
+                .keep_alive = keepAlive
             }
         }
     };

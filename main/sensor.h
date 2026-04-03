@@ -9,6 +9,8 @@
 #define ATTR_SETUP_ID            0x01
 #define ATTR_MIN_SPEED_ID        0x02
 #define ATTR_INVERT_ID           0x03
+#define ATTR_KEEPALIVE_ID        0x04
+#define ATTR_VELOCITY_OFFSET_ID  0x05
 #define CMD_SET_MIN_ID           0xF1
 #define CMD_SET_MAX_ID           0xF2
 #define CMD_NUDGE_ID             0xF3
@@ -20,6 +22,8 @@
 #define NVS_MAX               "max"
 #define NVS_MIN_SPEED         "minspeed"
 #define NVS_INVERT            "invert"
+#define NVS_KEEPALIVE         "keepalive"
+#define NVS_VELOCITY_OFFSET   "voffset"
 
 class ZigbeeSensor : public ZigbeeDevice {
     public:
@@ -30,10 +34,11 @@ class ZigbeeSensor : public ZigbeeDevice {
         void zbAttributeSet(const esp_zb_zcl_set_attr_value_message_t *message) override;
 
         void init(Preferences* prefs);
-        void setBattery(uint8_t battery, uint8_t percentage);
-        bool setTemperature(float temp);
-        bool setHumidity(float humidity);
+        void setBattery(const uint8_t battery, const uint8_t percentage);
+        bool setTemperature(const float temp);
+        bool setHumidity(const float humidity);
         bool setBlindState(uint8_t percent, uint16_t position, uint16_t actuations);
+        uint32_t getKeepAlive();
 
         void onConnect();
         void requestOTA();
@@ -52,9 +57,11 @@ class ZigbeeSensor : public ZigbeeDevice {
         uint64_t min = 0;
         int32_t minSpeed = 0;
         uint16_t max = 0;
+        uint16_t offset = 0;
         bool invert = false;
+        uint32_t keepAlive = 0;
 
-        void setLimit(bool minOrMax);
+        void setLimit(const bool minOrMax);
 
         Preferences* _prefs;
 

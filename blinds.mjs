@@ -63,7 +63,9 @@ export default {
             attributes: {
                 'setup': { ID: 0x0001, type: Zcl.DataType.BOOLEAN, write: true },
                 'minSpeed': { ID: 0x0002, type: Zcl.DataType.INT32, write: true, max: 0xffff },
-                'invert': { ID: 0x0003, type: Zcl.DataType.BOOLEAN, write: true }
+                'invert': { ID: 0x0003, type: Zcl.DataType.BOOLEAN, write: true },
+                'keepAlive': { ID: 0x0004, type: Zcl.DataType.UINT16, write: true, max: 0xffff },
+                'vOffset': { ID: 0x0005, type: Zcl.DataType.UINT16, write: true, max: 0xffff }
             },
             commands: {
                 setMin: { ID: 0xF1, parameters: [] },
@@ -86,12 +88,38 @@ export default {
             valueMin: 0,
             valueMax: 65534
         }),
+        m.binary({
+            name: 'invert',
+            valueOn: ['ON', 1],
+            valueOff: ['OFF', 0],
+            cluster: 'tcSpecificBlind',
+            attribute: 'invert',
+            description: 'Invert direction'
+        }),
+        m.battery({
+            voltage: true,
+            voltageReporting: true,
+            percentageReportingConfig: {min: "1_HOUR", max: "4_HOURS", change: 5},
+            voltageReportingConfig: {min: "1_HOUR", max: "4_HOURS", change: 5}
+        }),
+        m.temperature(),
+        m.humidity(),
+        m.identify(),
         m.numeric({
             name: "minSpeed",
             label: "Min Speed",
             description: "Minimum speed when nearing end of movement",
             cluster: "tcSpecificBlind",
             attribute: "minSpeed",
+            valueMin: 0,
+            valueMax: 65534
+        }),
+        m.numeric({
+            name: "vOffset",
+            label: "Velocity offset",
+            description: "Increase speed when going up",
+            cluster: "tcSpecificBlind",
+            attribute: "vOffset",
             valueMin: 0,
             valueMax: 65534
         }),
@@ -103,25 +131,8 @@ export default {
             attribute: 'setup',
             description: 'Enable setup mode'
         }),
-        m.binary({
-            name: 'invert',
-            valueOn: ['ON', 1],
-            valueOff: ['OFF', 0],
-            cluster: 'tcSpecificBlind',
-            attribute: 'invert',
-            description: 'Invert direction'
-        }),
         blindNudge(),
-        minMax(),
-        m.identify(),
-        m.battery({
-            voltage: true,
-            voltageReporting: true,
-            percentageReportingConfig: {min: "1_HOUR", max: "4_HOURS", change: 5},
-            voltageReportingConfig: {min: "1_HOUR", max: "4_HOURS", change: 5}
-        }),
-        m.temperature(),
-        m.humidity()
+        minMax()
     ],
     ota: true
 };

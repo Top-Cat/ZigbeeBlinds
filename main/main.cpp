@@ -183,7 +183,7 @@ static esp_err_t powerSaveInit() {
     return esp_pm_configure(&pm_config);
 }
 
-void motorMove(uint8_t percent, uint16_t position, uint16_t actuations) {
+void motorMove(const uint8_t percent, const uint16_t position, const uint16_t actuations) {
     zbEndpoint.setBlindState(percent, position, actuations);
 }
 
@@ -230,7 +230,7 @@ extern "C" void app_main(void) {
     zbEndpoint.init(&prefs);
 
     zigbeeCore.registerEndpoint(&zbEndpoint);
-    zigbeeCore.start();
+    zigbeeCore.start(zbEndpoint.getKeepAlive());
 
     while (!zigbeeCore.connected) {
         vTaskDelay(100 / portTICK_PERIOD_MS);

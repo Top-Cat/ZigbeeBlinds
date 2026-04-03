@@ -99,6 +99,26 @@ void ZigbeeSensor::createCustomClusters(esp_zb_cluster_list_t* cluster_list) {
         &val
     );
 
+    esp_zb_cluster_add_manufacturer_attr(
+        blinds_cluster,
+        MS_BLIND_CLUSTER_ID,
+        ATTR_KEEPALIVE_ID,
+        MANUFACTURER_CODE,
+        ESP_ZB_ZCL_ATTR_TYPE_U16,
+        ESP_ZB_ZCL_ATTR_ACCESS_READ_WRITE,
+        &val
+    );
+
+    esp_zb_cluster_add_manufacturer_attr(
+        blinds_cluster,
+        MS_BLIND_CLUSTER_ID,
+        ATTR_VELOCITY_OFFSET_ID,
+        MANUFACTURER_CODE,
+        ESP_ZB_ZCL_ATTR_TYPE_U16,
+        ESP_ZB_ZCL_ATTR_ACCESS_READ_WRITE,
+        &val
+    );
+
     esp_zb_cluster_list_add_custom_cluster(cluster_list, blinds_cluster, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
 }
 
@@ -168,15 +188,16 @@ static void findOTAServer(esp_zb_zdp_status_t zdo_status, uint16_t addr, uint8_t
 }
 
 void ZigbeeSensor::requestOTA() {
-    esp_zb_zdo_match_desc_req_param_t req;
     uint16_t cluster_list[] = {ESP_ZB_ZCL_CLUSTER_ID_OTA_UPGRADE};
+    esp_zb_zdo_match_desc_req_param_t req = {
+        .dst_nwk_addr = 0x0000,
+        .addr_of_interest = 0x0000,
+        .profile_id = ESP_ZB_AF_HA_PROFILE_ID,
+        .num_in_clusters = 1,
+        .num_out_clusters = 0,
+        .cluster_list = cluster_list
+    };
 
-    req.addr_of_interest = 0x0000;
-    req.dst_nwk_addr = 0x0000;
-    req.num_in_clusters = 1;
-    req.num_out_clusters = 0;
-    req.profile_id = ESP_ZB_AF_HA_PROFILE_ID;
-    req.cluster_list = cluster_list;
     esp_zb_lock_acquire(portMAX_DELAY);
     if (esp_zb_bdb_dev_joined()) {
         esp_zb_zdo_match_cluster(&req, findOTAServer, &_endpoint);
@@ -227,8 +248,11 @@ void ZigbeeSensor::init(Preferences* prefs) {
     uint64_t lmax = _prefs->getULong64(NVS_MAX, UINT64_MAX);
     minSpeed = _prefs->getInt(NVS_MIN_SPEED, 22000);
     invert = _prefs->getBool(NVS_INVERT, false);
+    keepAlive = _prefs->getUInt(NVS_KEEPALIVE, 8000);
+    offset = _prefs->getUShort(NVS_VELOCITY_OFFSET, 0);
     max = (lmax - min) / (1 << 4);
 
+    motor.setOffset(offset, !invert);
     motor.setVelocity(velocity);
     motor.setEnds(min, lmax);
     motor.setMinSpeed(minSpeed);
@@ -237,15 +261,15 @@ void ZigbeeSensor::init(Preferences* prefs) {
 void ZigbeeSensor::onConnect() {
     esp_zb_lock_acquire(portMAX_DELAY);
     void* varArr[] = {
-        &velocity, &max, &minSpeed, &invert
+        &velocity, &max, &minSpeed, &invert, &keepAlive, &offset
     };
     uint16_t attrIdArr[] = {
         ESP_ZB_ZCL_ATTR_WINDOW_COVERING_VELOCITY_ID, ESP_ZB_ZCL_ATTR_WINDOW_COVERING_INSTALLED_CLOSED_LIMIT_LIFT_ID,
-        ATTR_MIN_SPEED_ID, ATTR_INVERT_ID
+        ATTR_MIN_SPEED_ID, ATTR_INVERT_ID, ATTR_KEEPALIVE_ID, ATTR_VELOCITY_OFFSET_ID
     };
     uint16_t clusterIdArr[] = {
         ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING, ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
-        MS_BLIND_CLUSTER_ID, MS_BLIND_CLUSTER_ID
+        MS_BLIND_CLUSTER_ID, MS_BLIND_CLUSTER_ID, MS_BLIND_CLUSTER_ID, MS_BLIND_CLUSTER_ID
     };
     uint8_t items = sizeof(attrIdArr) / sizeof(uint16_t);
 
@@ -303,12 +327,22 @@ void ZigbeeSensor::zbAttributeSet(const esp_zb_zcl_set_attr_value_message_t *mes
             case ATTR_INVERT_ID:
                 invert = *(bool *)message->attribute.data.value;
                 _prefs->putBool(NVS_INVERT, invert);
+                motor.setOffset(offset, !invert);
+                break;
+            case ATTR_KEEPALIVE_ID:
+                keepAlive = *(uint16_t *)message->attribute.data.value;
+                _prefs->putUInt(NVS_KEEPALIVE, keepAlive);
+                break;
+            case ATTR_VELOCITY_OFFSET_ID:
+                offset = *(uint16_t *)message->attribute.data.value;
+                _prefs->putUShort(NVS_VELOCITY_OFFSET, offset);
+                motor.setOffset(offset, !invert);
                 break;
         }
     }
 }
 
-void ZigbeeSensor::setLimit(bool minOrMax) {
+void ZigbeeSensor::setLimit(const bool minOrMax) {
     uint64_t lmax = 0;
     if (minOrMax ^ invert) {
         min = motor.setMin();
@@ -422,7 +456,7 @@ tm ZigbeeSensor::fetchTime() {
     return getTime(_endpoint);
 }
 
-bool ZigbeeSensor::setTemperature(float temperature) {
+bool ZigbeeSensor::setTemperature(const float temperature) {
     int16_t zigbeeTemp = temperature * 100;
 
     esp_zb_zcl_status_t ret = ESP_ZB_ZCL_STATUS_SUCCESS;
@@ -445,7 +479,7 @@ bool ZigbeeSensor::setTemperature(float temperature) {
     return res;
 }
 
-bool ZigbeeSensor::setHumidity(float humidity) {
+bool ZigbeeSensor::setHumidity(const float humidity) {
     int16_t zigbeeHumidity = humidity * 100;
 
     esp_zb_zcl_status_t ret = ESP_ZB_ZCL_STATUS_SUCCESS;
@@ -510,4 +544,8 @@ bool ZigbeeSensor::setBlindState(uint8_t percent, uint16_t position, uint16_t ac
         ESP_LOGE(TAG, "Failed to set percentage: 0x%x: %s", ret, esp_zb_zcl_status_to_name(ret));
     }
     return res;
+}
+
+uint32_t ZigbeeSensor::getKeepAlive() {
+    return keepAlive;
 }
