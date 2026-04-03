@@ -155,8 +155,12 @@ void BlindMotor::updateDesired(const int8_t speed) {
 
     uint16_t speedRange = _maxSpeed - _minSpeed;
     int32_t lerp = _minSpeed + (((speedAbs - 1) * speedRange) / 99);
+    if (_offsetDir == sign) {
+        uint16_t maxOffset = (0x8000 - lerp) * 4;
+        uint16_t localOffset = _offset > maxOffset ? maxOffset : _offset;
+        lerp += (localOffset / 4);
+    }
     int32_t newSpeed = speed == 0 ? 0 : (sign ? -lerp : lerp);
-    if (_offsetDir == sign) newSpeed += (_offset / 4);
 
     updateSpeed(newSpeed);
 }
