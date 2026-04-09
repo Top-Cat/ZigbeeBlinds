@@ -228,9 +228,7 @@ void BlindMotor::task() {
             if (lastLocalPosition != _exactPosition) movingCheck = 3;
             lastLocalPosition = _exactPosition;
 
-            if (_on_move != NULL) {
-                _on_move(getPercent(), getPosition(), _actuations);
-            }
+            triggerCallback();
 
             diff = absDiff(_exactPosition, _target);
             if (diff < 100 && _speed == 0) break; // Don't start moving for small distances
@@ -343,6 +341,7 @@ void BlindMotor::setVelocity(const uint16_t v) {
 void BlindMotor::setOffset(const uint16_t v, const bool dir) {
     _offset = v;
     _offsetDir = dir;
+    triggerCallback();
 }
 
 void BlindMotor::setEnds(const uint64_t min, const uint64_t max) {
@@ -358,5 +357,9 @@ void BlindMotor::nudge(const int16_t dist) {
 
 void BlindMotor::moveCallback(void (*callback)(uint8_t, uint16_t, uint16_t)) {
     _on_move = callback;
-    _on_move(getPercent(), getPosition(), _actuations);
+    triggerCallback();
+}
+
+void BlindMotor::triggerCallback() {
+    if (_on_move != NULL) _on_move(getPercent(), getPosition(), _actuations);
 }

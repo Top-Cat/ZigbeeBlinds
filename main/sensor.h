@@ -62,6 +62,8 @@ class ZigbeeSensor : public ZigbeeDevice {
         uint32_t keepAlive = 0;
 
         void setLimit(const bool minOrMax);
+        void setInvert(const bool newValue);
+        void updateCoveringForInvert();
 
         Preferences* _prefs;
 

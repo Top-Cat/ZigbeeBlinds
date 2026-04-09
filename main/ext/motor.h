@@ -40,6 +40,7 @@ class BlindMotor {
         bool _identify = false;
 
         void updateTarget(const uint64_t newTarget);
+        void triggerCallback();
         void (*_on_move)(const uint8_t, const uint16_t, const uint16_t);
     public:
         void init(Preferences* prefs);

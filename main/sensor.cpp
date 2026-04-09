@@ -252,6 +252,8 @@ void ZigbeeSensor::init(Preferences* prefs) {
     offset = _prefs->getUShort(NVS_VELOCITY_OFFSET, 0);
     max = (lmax - min) / (1 << 4);
 
+    updateCoveringForInvert();
+
     motor.setOffset(offset, !invert);
     motor.setVelocity(velocity);
     motor.setEnds(min, lmax);
@@ -261,14 +263,18 @@ void ZigbeeSensor::init(Preferences* prefs) {
 void ZigbeeSensor::onConnect() {
     esp_zb_lock_acquire(portMAX_DELAY);
     void* varArr[] = {
-        &velocity, &max, &minSpeed, &invert, &keepAlive, &offset
+        &velocity, &max, &wc_cluster_cfg.covering_status,
+        &wc_cluster_cfg.covering_mode,
+        &minSpeed, &invert, &keepAlive, &offset
     };
     uint16_t attrIdArr[] = {
-        ESP_ZB_ZCL_ATTR_WINDOW_COVERING_VELOCITY_ID, ESP_ZB_ZCL_ATTR_WINDOW_COVERING_INSTALLED_CLOSED_LIMIT_LIFT_ID,
+        ESP_ZB_ZCL_ATTR_WINDOW_COVERING_VELOCITY_ID, ESP_ZB_ZCL_ATTR_WINDOW_COVERING_INSTALLED_CLOSED_LIMIT_LIFT_ID, ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CONFIG_STATUS_ID,
+        ESP_ZB_ZCL_ATTR_WINDOW_COVERING_MODE_ID,
         ATTR_MIN_SPEED_ID, ATTR_INVERT_ID, ATTR_KEEPALIVE_ID, ATTR_VELOCITY_OFFSET_ID
     };
     uint16_t clusterIdArr[] = {
-        ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING, ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
+        ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING, ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING, ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
+        ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
         MS_BLIND_CLUSTER_ID, MS_BLIND_CLUSTER_ID, MS_BLIND_CLUSTER_ID, MS_BLIND_CLUSTER_ID
     };
     uint8_t items = sizeof(attrIdArr) / sizeof(uint16_t);
@@ -298,6 +304,46 @@ void ZigbeeSensor::onConnect() {
     esp_zb_lock_release();
 }
 
+void ZigbeeSensor::updateCoveringForInvert() {
+    if (invert) {
+        wc_cluster_cfg.covering_status |= ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CONFIG_REVERSE_COMMANDS;
+        wc_cluster_cfg.covering_mode |= ESP_ZB_ZCL_ATTR_WINDOW_COVERING_TYPE_REVERSED_MOTOR_DIRECTION;
+    } else {
+        wc_cluster_cfg.covering_status &= ~ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CONFIG_REVERSE_COMMANDS;
+        wc_cluster_cfg.covering_mode &= ~ESP_ZB_ZCL_ATTR_WINDOW_COVERING_TYPE_REVERSED_MOTOR_DIRECTION;
+    }
+}
+
+void ZigbeeSensor::setInvert(const bool newValue) {
+    if (invert != newValue) {
+        invert = newValue;
+
+        _prefs->putBool(NVS_INVERT, invert);
+        motor.setOffset(offset, !invert);
+    }
+
+    updateCoveringForInvert();
+
+    esp_zb_lock_acquire(portMAX_DELAY);
+    esp_zb_zcl_set_attribute_val(
+        _endpoint,
+        ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
+        ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+        ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CONFIG_STATUS_ID,
+        &wc_cluster_cfg.covering_status,
+        false
+    );
+    esp_zb_zcl_set_attribute_val(
+        _endpoint,
+        ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
+        ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+        ESP_ZB_ZCL_ATTR_WINDOW_COVERING_MODE_ID,
+        &wc_cluster_cfg.covering_mode,
+        false
+    );
+    esp_zb_lock_release();
+}
+
 void ZigbeeSensor::zbAttributeSet(const esp_zb_zcl_set_attr_value_message_t *message) {
     if (message->info.cluster == ESP_ZB_ZCL_CLUSTER_ID_IDENTIFY) {
         uint16_t state = *(uint16_t *)message->attribute.data.value;
@@ -317,6 +363,21 @@ void ZigbeeSensor::zbAttributeSet(const esp_zb_zcl_set_attr_value_message_t *mes
             case ATTR_SETUP_ID: {
                 bool setup = *(bool *)message->attribute.data.value;
                 motor.setSetup(setup);
+
+                if (setup) {
+                    wc_cluster_cfg.covering_mode |= ESP_ZB_ZCL_ATTR_WINDOW_COVERING_TYPE_RUN_IN_CALIBRATION_MODE;
+                } else {
+                    wc_cluster_cfg.covering_mode &= ~ESP_ZB_ZCL_ATTR_WINDOW_COVERING_TYPE_RUN_IN_CALIBRATION_MODE;
+                }
+
+                esp_zb_zcl_set_attribute_val(
+                    _endpoint,
+                    ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
+                    ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+                    ESP_ZB_ZCL_ATTR_WINDOW_COVERING_MODE_ID,
+                    &wc_cluster_cfg.covering_mode,
+                    false
+                );
                 break;
             }
             case ATTR_MIN_SPEED_ID:
@@ -325,9 +386,7 @@ void ZigbeeSensor::zbAttributeSet(const esp_zb_zcl_set_attr_value_message_t *mes
                 motor.setMinSpeed(minSpeed);
                 break;
             case ATTR_INVERT_ID:
-                invert = *(bool *)message->attribute.data.value;
-                _prefs->putBool(NVS_INVERT, invert);
-                motor.setOffset(offset, !invert);
+                setInvert(*(bool *)message->attribute.data.value);
                 break;
             case ATTR_KEEPALIVE_ID:
                 keepAlive = *(uint16_t *)message->attribute.data.value;
@@ -426,7 +485,7 @@ ZigbeeSensor::ZigbeeSensor(uint8_t endpoint) : ZigbeeDevice(ESP_ZB_HA_SIMPLE_SEN
         .covering_type = ESP_ZB_ZCL_ATTR_WINDOW_COVERING_TYPE_ROLLERSHADE,
         .covering_status = ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CONFIG_OPERATIONAL | ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CONFIG_ONLINE |
             ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CONFIG_LIFT_CONTROL_IS_CLOSED_LOOP | ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CONFIG_LIFT_ENCODER_CONTROLLED,
-        .covering_mode = 0
+        .covering_mode = ESP_ZB_ZCL_ATTR_WINDOW_COVERING_TYPE_LEDS_WILL_DISPLAY_FEEDBACK
     };
     temperature_cfg = {
         .measured_value = (int16_t) 0x8000,
