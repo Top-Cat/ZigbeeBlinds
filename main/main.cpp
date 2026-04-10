@@ -129,8 +129,13 @@ void handleResetButton() {
     while (gpio_get_level(EXT_BUTTON_PIN) == 0) {
         vTaskDelay(50 / portTICK_PERIOD_MS);
         if (esp_timer_get_time() - pressStart > 3000000) {
-            ESP_LOGW(TAG, "Resetting Zigbee to factory and rebooting in 1s.");
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            ESP_LOGW(TAG, "Resetting Zigbee to factory and rebooting.");
+            gpio_set_level(LED_PIN, 1);
+
+            gpio_hold_en(LED_PIN);
+            while (gpio_get_level(EXT_BUTTON_PIN) == 0) { vTaskDelay(1); }
+
+            vTaskDelay(300 / portTICK_PERIOD_MS);
             esp_zb_factory_reset();
         }
     }
@@ -206,6 +211,8 @@ extern "C" void app_main(void) {
     gpioConfig.mode = GPIO_MODE_OUTPUT;
     gpioConfig.pull_up_en = GPIO_PULLUP_DISABLE;
     gpio_config(&gpioConfig);
+    gpio_hold_dis(LED_PIN);
+    gpio_set_level(LED_PIN, 0);
     gpio_install_isr_service(0);
     gpio_isr_handler_add(EXT_BUTTON_PIN, buttonISR, NULL);
 
