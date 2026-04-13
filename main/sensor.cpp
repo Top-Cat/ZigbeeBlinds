@@ -119,6 +119,16 @@ void ZigbeeSensor::createCustomClusters(esp_zb_cluster_list_t* cluster_list) {
         &val
     );
 
+    esp_zb_cluster_add_manufacturer_attr(
+        blinds_cluster,
+        MS_BLIND_CLUSTER_ID,
+        ATTR_VOLTAGE_ID,
+        MANUFACTURER_CODE,
+        ESP_ZB_ZCL_ATTR_TYPE_U16,
+        ESP_ZB_ZCL_ATTR_ACCESS_READ_ONLY,
+        &val
+    );
+
     esp_zb_cluster_list_add_custom_cluster(cluster_list, blinds_cluster, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
 }
 
@@ -221,7 +231,7 @@ esp_zb_cluster_list_t* ZigbeeSensor::createClusters() {
     return cluster_list;
 }
 
-void ZigbeeSensor::setBattery(uint8_t battery, uint8_t percentage) {
+void ZigbeeSensor::setBattery(uint8_t battery, uint8_t percentage, uint16_t precise) {
     esp_zb_zcl_set_attribute_val(
         _endpoint,
         ESP_ZB_ZCL_CLUSTER_ID_POWER_CONFIG,
@@ -237,6 +247,16 @@ void ZigbeeSensor::setBattery(uint8_t battery, uint8_t percentage) {
         ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
         ESP_ZB_ZCL_ATTR_POWER_CONFIG_BATTERY_VOLTAGE_ID,
         &battery,
+        false
+    );
+
+    esp_zb_zcl_set_manufacturer_attribute_val(
+        _endpoint,
+        MS_BLIND_CLUSTER_ID,
+        ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
+        MANUFACTURER_CODE,
+        ATTR_VOLTAGE_ID,
+        &precise,
         false
     );
 }

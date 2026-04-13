@@ -65,7 +65,8 @@ export default {
                 'minSpeed': { ID: 0x0002, type: Zcl.DataType.INT32, write: true, max: 0xffff },
                 'invert': { ID: 0x0003, type: Zcl.DataType.BOOLEAN, write: true },
                 'keepAlive': { ID: 0x0004, type: Zcl.DataType.UINT16, write: true, max: 0xffff },
-                'vOffset': { ID: 0x0005, type: Zcl.DataType.UINT16, write: true, max: 0xffff }
+                'vOffset': { ID: 0x0005, type: Zcl.DataType.UINT16, write: true, max: 0xffff },
+                'batteryVoltage': { ID: 0x0006, type: Zcl.DataType.UINT16, max: 0xffff }
             },
             commands: {
                 setMin: { ID: 0xF1, parameters: [] },

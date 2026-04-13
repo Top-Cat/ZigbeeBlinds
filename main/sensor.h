@@ -11,6 +11,7 @@
 #define ATTR_INVERT_ID           0x03
 #define ATTR_KEEPALIVE_ID        0x04
 #define ATTR_VELOCITY_OFFSET_ID  0x05
+#define ATTR_VOLTAGE_ID          0x06
 #define CMD_SET_MIN_ID           0xF1
 #define CMD_SET_MAX_ID           0xF2
 #define CMD_NUDGE_ID             0xF3
@@ -34,7 +35,7 @@ class ZigbeeSensor : public ZigbeeDevice {
         void zbAttributeSet(const esp_zb_zcl_set_attr_value_message_t *message) override;
 
         void init(Preferences* prefs);
-        void setBattery(const uint8_t battery, const uint8_t percentage);
+        void setBattery(const uint8_t battery, const uint8_t percentage, const uint16_t precise);
         bool setTemperature(const float temp);
         bool setHumidity(const float humidity);
         bool setBlindState(uint8_t percent, uint16_t position, uint16_t actuations);

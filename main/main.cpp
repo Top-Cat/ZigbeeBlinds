@@ -149,10 +149,11 @@ void handleHeartbeat() {
 
     if (heartbeatCounter % 60 == 0) {
         // Every hour
+        uint16_t preciseMv;
         uint8_t zigbeeMv, zigbeePercent;
-        if (adc.getValue(zigbeeMv, zigbeePercent)) {
+        if (adc.getValue(zigbeeMv, zigbeePercent, preciseMv)) {
             ESP_LOGI(TAG, "ADC result = %d, %d", zigbeeMv, zigbeePercent);
-            zbEndpoint.setBattery(zigbeeMv, zigbeePercent);
+            zbEndpoint.setBattery(zigbeeMv, zigbeePercent, preciseMv);
         }
 
         // HDC2080 will automatically update
@@ -220,8 +221,9 @@ extern "C" void app_main(void) {
     prefs.begin(NVS_NAMESPACE, false);
     hdc2080.init();
 
+    uint16_t preciseMv;
     uint8_t zigbeeMv, zigbeePercent;
-    adc.getValue(zigbeeMv, zigbeePercent);
+    adc.getValue(zigbeeMv, zigbeePercent, preciseMv);
     if (zigbeeMv < 60) {
         // On USB power disable motor!
         ESP_LOGW(TAG, "On USB power. Skipping motor init");
@@ -244,7 +246,7 @@ extern "C" void app_main(void) {
     }
 
     zbEndpoint.onConnect();
-    zbEndpoint.setBattery(zigbeeMv, zigbeePercent);
+    zbEndpoint.setBattery(zigbeeMv, zigbeePercent, preciseMv);
     zbEndpoint.requestOTA();
     zbEndpoint.fetchTime();
     motor.moveCallback(motorMove);

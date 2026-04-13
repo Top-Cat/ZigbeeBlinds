@@ -6,7 +6,8 @@
 BSADC adc;
 
 void BSADC::init() {
-    adc_channel_t channel = (adc_channel_t) BAT_ADC_PIN;
+    channel = (adc_channel_t) BAT_ADC_PIN;
+
     adc_oneshot_unit_init_cfg_t init_config = {
         .unit_id = ADC_UNIT_1,
         .clk_src = (adc_oneshot_clk_src_t) 0,
@@ -40,7 +41,7 @@ void BSADC::disable() {
     adc_oneshot_del_unit(adc_handle);
 }
 
-bool BSADC::getValue(uint8_t &out, uint8_t &percent) {
+bool BSADC::getValue(uint8_t &out, uint8_t &percent, uint16_t &precise) {
     enable();
 
     vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -48,8 +49,9 @@ bool BSADC::getValue(uint8_t &out, uint8_t &percent) {
     int adcValue;
     bool res = getAdcValue(adcValue);
     if (res) {
-        out = (uint8_t) (((adcValue * multiplier) + 50) / 100); // + 50 makes rounding correct
-        percent = (uint8_t) (((adcValue * multiplier) - BAT_LOW_MV) / percentMult);
+        precise = adcValue * multiplier;
+        out = (uint8_t) ((precise + 50) / 100); // + 50 makes rounding correct
+        percent = (uint8_t) ((precise - BAT_LOW_MV) / percentMult);
     }
 
     disable();
@@ -61,7 +63,7 @@ bool BSADC::getAdcValue(int &result, const uint8_t samples) {
     int adcValue, sum = 0;
     uint8_t realSamples = 0;
     for (uint8_t i = 0; i < samples; i++) {
-        bool res = adc_oneshot_get_calibrated_result(adc_handle, cali_handle, (adc_channel_t) BAT_ADC_PIN, &adcValue) == ESP_OK;
+        bool res = adc_oneshot_get_calibrated_result(adc_handle, cali_handle, channel, &adcValue) == ESP_OK;
         if (res) {
             realSamples++;
             sum += adcValue;
