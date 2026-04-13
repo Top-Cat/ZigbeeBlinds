@@ -20,6 +20,7 @@ class BSADC {
 
         void enable();
         void disable();
+        bool getAdcValue(int &result, const uint8_t samples = 5);
 };
 
 extern BSADC adc;
