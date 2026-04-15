@@ -7,6 +7,18 @@
 #define R2_K 470
 #define BAT_HIGH_MV 12500
 #define BAT_LOW_MV 8800
+#define ADC_MAX (BAT_HIGH_MV * R2_K) / (R1_K + R2_K)
+
+// Maximise adc performance by using the least attenuation we can
+#if ADC_MAX > 1900
+#define BSADC_ATTN ADC_ATTEN_DB_12
+#elif ADC_MAX > 1300
+#define BSADC_ATTN ADC_ATTEN_DB_6
+#elif ADC_MAX > 1000
+#define BSADC_ATTN ADC_ATTEN_DB_2_5
+#else
+#define BSADC_ATTN ADC_ATTEN_DB_0
+#endif
 
 class BSADC {
     public:

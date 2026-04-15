@@ -16,7 +16,7 @@ void BSADC::init() {
     ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config, &adc_handle));
 
     adc_oneshot_chan_cfg_t config = {
-        .atten = ADC_ATTEN_DB_12,
+        .atten = BSADC_ATTN,
         .bitwidth = ADC_BITWIDTH_12
     };
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_handle, channel, &config));
@@ -24,7 +24,7 @@ void BSADC::init() {
     adc_cali_curve_fitting_config_t cali_cfg = {
         .unit_id = ADC_UNIT_1,
         .chan = channel,
-        .atten = ADC_ATTEN_DB_12,
+        .atten = BSADC_ATTN,
         .bitwidth = ADC_BITWIDTH_12
     };
     ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&cali_cfg, &cali_handle));
