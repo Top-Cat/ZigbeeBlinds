@@ -225,6 +225,7 @@ extern "C" void app_main(void) {
 
     // Setup wake from external button
     rtc_gpio_init(EXT_BUTTON_PIN);
+    rtc_gpio_pullup_en(EXT_BUTTON_PIN);
     esp_sleep_enable_ext1_wakeup(BIT64(EXT_BUTTON_PIN), ESP_EXT1_WAKEUP_ANY_LOW);
 
     ESP_ERROR_CHECK(nvs_flash_init());
