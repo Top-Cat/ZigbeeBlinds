@@ -37,6 +37,10 @@ void HDC2080::init() {
     initMutex();
     initDevice();
     gpio_isr_handler_add(TEMP_INT_PIN, dataReadyISR, NULL);
+
+    // Deinit i2c to save power
+    i2c_dev_delete_mutex(&i2c);
+    i2cdev_done();
 }
 
 esp_err_t HDC2080::initDevice() {

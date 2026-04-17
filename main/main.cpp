@@ -182,8 +182,8 @@ static void mainTask(void *pvParameters) {
 static esp_err_t powerSaveInit() {
     int cur_cpu_freq_mhz = CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ;
     esp_pm_config_t pm_config = {
-        .max_freq_mhz = cur_cpu_freq_mhz,
-        .min_freq_mhz = cur_cpu_freq_mhz,
+        .max_freq_mhz = cur_cpu_freq_mhz / 2,
+        .min_freq_mhz = cur_cpu_freq_mhz / 8,
         .light_sleep_enable = true
     };
     return esp_pm_configure(&pm_config);
@@ -197,6 +197,7 @@ Preferences prefs;
 
 extern "C" void app_main(void) {
     powerSaveInit();
+    esp_sleep_cpu_retention_init();
     main_task_queue = xQueueCreate(4, sizeof(uint8_t));
 
     gpio_config_t gpioConfig = {
