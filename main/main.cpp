@@ -6,6 +6,7 @@
 #include "esp_timer.h"
 #include "esp_pm.h"
 #include "esp_sleep.h"
+#include "driver/rtc_io.h"
 #include "esp_log.h"
 #include "ha/esp_zigbee_ha_standard.h"
 #include "nvs_flash.h"
@@ -33,6 +34,7 @@ ZigbeeSensor zbEndpoint = ZigbeeSensor(ENDPOINT_NUMBER);
 ////////////////////////
 
 void IRAM_ATTR buttonISR(void* data) {
+    gpio_set_intr_type(EXT_BUTTON_PIN, GPIO_INTR_DISABLE);
     button_pressed = true;
 
     BaseType_t hpw = pdFALSE;
@@ -94,6 +96,8 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct) {
         }
         break;
     case ESP_ZB_COMMON_SIGNAL_CAN_SLEEP:
+        // Force interrupt to trigger on wake
+        gpio_set_intr_type(EXT_BUTTON_PIN, GPIO_INTR_LOW_LEVEL);
         esp_zb_sleep_now();
         xQueueSend(main_task_queue, &dummy, 0);
         break;
@@ -120,8 +124,7 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal_struct) {
 }
 
 void handleResetButton() {
-    if (!button_pressed)
-        return;
+    if (!button_pressed) return;
 
     button_pressed = false;
 
@@ -215,8 +218,14 @@ extern "C" void app_main(void) {
     gpio_config(&gpioConfig);
     gpio_hold_dis(LED_PIN);
     gpio_set_level(LED_PIN, 0);
+
+    // Enable ISR for external button
     gpio_install_isr_service(0);
     gpio_isr_handler_add(EXT_BUTTON_PIN, buttonISR, NULL);
+
+    // Setup wake from external button
+    rtc_gpio_init(EXT_BUTTON_PIN);
+    esp_sleep_enable_ext1_wakeup(BIT64(EXT_BUTTON_PIN), ESP_EXT1_WAKEUP_ANY_LOW);
 
     ESP_ERROR_CHECK(nvs_flash_init());
     prefs.begin(NVS_NAMESPACE, false);
